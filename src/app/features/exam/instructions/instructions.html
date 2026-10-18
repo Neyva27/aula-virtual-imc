@@ -1,0 +1,51 @@
+<div class="stack">
+  <header>
+    <h1>Instrucciones del examen</h1>
+    @if (course()) {
+      <p class="muted">{{ course()!.name }}</p>
+    }
+  </header>
+
+  @if (loading()) {
+    <p class="card muted" role="status">Cargando…</p>
+  } @else if (error()) {
+    <p class="alert alert-danger" role="alert">{{ error() }}</p>
+  } @else if (config(); as cfg) {
+    <section class="card stack">
+      <dl class="data">
+        <div><dt>Número de preguntas</dt><dd>{{ questionCount() }}</dd></div>
+        <div><dt>Tiempo disponible</dt><dd>{{ cfg.timeMinutes }} minutos</dd></div>
+        <div><dt>Nota mínima aprobatoria</dt><dd>{{ cfg.passScore }} / {{ cfg.scaleMax }}</dd></div>
+        <div><dt>Intentos disponibles</dt><dd>{{ remaining() }} de {{ cfg.maxAttempts }}</dd></div>
+      </dl>
+
+      <div>
+        <h2>Antes de comenzar</h2>
+        <ul class="rules">
+          <li>Lee cada pregunta con atención. Hay preguntas de selección única, selección múltiple y verdadero o falso.</li>
+          <li>El tiempo empieza a correr cuando presionas “Comenzar examen” y se muestra durante toda la evaluación.</li>
+          <li>Puedes cambiar tus respuestas y moverte entre preguntas antes de enviar.</li>
+          <li>Si el tiempo se agota, se enviarán automáticamente las respuestas guardadas.</li>
+          <li>Solo puedes tener un intento activo a la vez.</li>
+          <li>Si apruebas, se habilitará tu certificado digital.</li>
+        </ul>
+      </div>
+
+      @if (blockReason()) {
+        <p class="alert alert-warning" role="status">{{ blockReason() }}</p>
+      }
+
+      <div class="row">
+        <button type="button" class="btn btn-primary" [disabled]="!!blockReason()" (click)="start()">
+          {{ hasActive() ? 'Continuar examen' : 'Comenzar examen' }}
+        </button>
+        <a class="btn btn-ghost" routerLink="/curso">Volver al aula</a>
+      </div>
+    </section>
+
+    <p class="alert alert-info small">
+      Valores de demostración (tiempo, nota mínima, intentos y preguntas), pendientes de confirmar con la
+      empresa. En la versión real, el servidor controla el tiempo, guarda las respuestas y califica.
+    </p>
+  }
+</div>

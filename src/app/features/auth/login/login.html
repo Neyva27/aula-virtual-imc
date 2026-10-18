@@ -83,6 +83,12 @@
         </li>
       }
     </ul>
-    <p class="small"><a href="/verificar">Verificar un certificado</a></p>
+    @if (resetDone()) {
+      <p class="alert alert-success small" role="status">Datos de demostración restablecidos.</p>
+    }
+    <div class="row">
+      <a class="small" href="/verificar">Verificar un certificado</a>
+      <button type="button" class="btn btn-ghost small" (click)="resetDemo()">Restablecer datos de demostración</button>
+    </div>
   </section>
 </div>

@@ -1,6 +1,6 @@
 import { User } from '../models/user.model';
 import { Course, Enrollment } from '../models/course.model';
-import { Attempt } from '../models/exam.model';
+import { Attempt, Question } from '../models/exam.model';
 import { Certificate } from '../models/certificate.model';
 import { DEMO_CONFIG } from '../config/demo.config';
 
@@ -78,4 +78,31 @@ export const SEED_CERTIFICATES: Certificate[] = [
     entityName: DEMO_CONFIG.entityName,
     status: 'vigente',
   },
+];
+
+const TF = [
+  { id: 'v', text: 'Verdadero' },
+  { id: 'f', text: 'Falso' },
+];
+
+// PREGUNTAS DE DEMOSTRACIÓN: no son preguntas oficiales de IMC.
+export const SEED_QUESTIONS: Question[] = [
+  { id: 'q1', type: 'single', text: '¿Cuál es la capital del Perú?', points: 10, correct: ['b'],
+    options: [{ id: 'a', text: 'Cusco' }, { id: 'b', text: 'Lima' }, { id: 'c', text: 'Arequipa' }, { id: 'd', text: 'Piura' }] },
+  { id: 'q2', type: 'single', text: '¿Cuántos días tiene una semana?', points: 10, correct: ['c'],
+    options: [{ id: 'a', text: '5' }, { id: 'b', text: '6' }, { id: 'c', text: '7' }, { id: 'd', text: '8' }] },
+  { id: 'q3', type: 'single', text: '¿Qué planeta es conocido como el planeta rojo?', points: 10, correct: ['b'],
+    options: [{ id: 'a', text: 'Venus' }, { id: 'b', text: 'Marte' }, { id: 'c', text: 'Júpiter' }, { id: 'd', text: 'Saturno' }] },
+  { id: 'q4', type: 'single', text: '¿Cuál de estos programas es un navegador web?', points: 10, correct: ['a'],
+    options: [{ id: 'a', text: 'Chrome' }, { id: 'b', text: 'Excel' }, { id: 'c', text: 'Word' }, { id: 'd', text: 'Paint' }] },
+  { id: 'q5', type: 'single', text: '¿Cuántos minutos tiene una hora?', points: 10, correct: ['c'],
+    options: [{ id: 'a', text: '30' }, { id: 'b', text: '45' }, { id: 'c', text: '60' }, { id: 'd', text: '100' }] },
+  { id: 'q6', type: 'multiple', text: 'Selecciona todos los números pares.', points: 10, correct: ['a', 'c', 'e'],
+    options: [{ id: 'a', text: '2' }, { id: 'b', text: '3' }, { id: 'c', text: '4' }, { id: 'd', text: '7' }, { id: 'e', text: '8' }] },
+  { id: 'q7', type: 'multiple', text: 'Selecciona todas las frutas.', points: 10, correct: ['a', 'c', 'e'],
+    options: [{ id: 'a', text: 'Manzana' }, { id: 'b', text: 'Zanahoria' }, { id: 'c', text: 'Plátano' }, { id: 'd', text: 'Papa' }, { id: 'e', text: 'Naranja' }] },
+  { id: 'q8', type: 'multiple', text: 'Selecciona los días del fin de semana.', points: 10, correct: ['b', 'd'],
+    options: [{ id: 'a', text: 'Lunes' }, { id: 'b', text: 'Sábado' }, { id: 'c', text: 'Miércoles' }, { id: 'd', text: 'Domingo' }] },
+  { id: 'q9', type: 'truefalse', text: 'El agua hierve a 100 °C a nivel del mar.', points: 10, correct: ['v'], options: TF },
+  { id: 'q10', type: 'truefalse', text: 'El Sol es un planeta.', points: 10, correct: ['f'], options: TF },
 ];

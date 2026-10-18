@@ -1,0 +1,112 @@
+<div class="stack">
+  <header class="bar card">
+    <div>
+      <h1>Examen</h1>
+      <p class="small muted">Pregunta {{ index() + 1 }} de {{ questions().length }} · {{ answeredCount() }} respondidas</p>
+    </div>
+    <div class="timer" [class.is-low]="lowTime()" role="timer" aria-live="off">
+      <span class="small">Tiempo restante</span>
+      <strong>{{ timeLabel() }}</strong>
+    </div>
+  </header>
+
+  <app-progress-bar [value]="percent()" label="Avance del examen" />
+
+  @if (error()) {
+    <p class="alert alert-danger" role="alert">{{ error() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="card muted" role="status">Cargando preguntas…</p>
+  } @else if (current(); as q) {
+    <div class="layout">
+      <section class="card stack">
+        <fieldset class="q">
+          <legend>
+            <span class="badge badge--info">
+              {{ q.type === 'multiple' ? 'Selección múltiple' : q.type === 'truefalse' ? 'Verdadero o falso' : 'Selección única' }}
+            </span>
+            <span class="qtext">{{ index() + 1 }}. {{ q.text }}</span>
+          </legend>
+          @if (q.type === 'multiple') {
+            <p class="small muted">Puedes marcar más de una opción.</p>
+          }
+          <div class="opts">
+            @for (o of q.options; track o.id) {
+              <label class="opt" [class.is-selected]="isSelected(q.id, o.id)">
+                <input
+                  [type]="q.type === 'multiple' ? 'checkbox' : 'radio'"
+                  [name]="'q-' + q.id"
+                  [checked]="isSelected(q.id, o.id)"
+                  (change)="choose(q, o.id)"
+                />
+                <span>{{ o.text }}</span>
+              </label>
+            }
+          </div>
+        </fieldset>
+
+        <div class="row nav">
+          <button type="button" class="btn btn-secondary" [disabled]="index() === 0" (click)="go(index() - 1)">
+            ← Anterior
+          </button>
+          @if (index() < questions().length - 1) {
+            <button type="button" class="btn btn-secondary" (click)="go(index() + 1)">Siguiente →</button>
+          }
+          <button
+            type="button"
+            class="btn btn-primary push"
+            [class.is-loading]="submitting()"
+            [disabled]="submitting()"
+            (click)="askSubmit()"
+          >
+            Finalizar y enviar
+          </button>
+        </div>
+      </section>
+
+      <aside class="card stack">
+        <h3>Preguntas</h3>
+        <div class="chips">
+          @for (item of questions(); track item.id; let i = $index) {
+            <button
+              type="button"
+              class="chip"
+              [class.is-current]="i === index()"
+              [class.is-answered]="isAnswered(item)"
+              [attr.aria-label]="'Ir a la pregunta ' + (i + 1) + (isAnswered(item) ? ', respondida' : ', sin responder')"
+              [attr.aria-current]="i === index() ? 'step' : null"
+              (click)="go(i)"
+            >
+              {{ i + 1 }}
+            </button>
+          }
+        </div>
+        <p class="small muted">Azul: respondida · Borde: pregunta actual.</p>
+        <p class="alert alert-info small">
+          Preguntas de demostración. El temporizador y la calificación están simulados en el navegador.
+        </p>
+      </aside>
+    </div>
+  }
+
+  @if (showConfirm()) {
+    <div class="overlay">
+      <div class="dialog card stack" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <h2 id="confirm-title">¿Enviar el examen?</h2>
+        @if (unanswered() > 0) {
+          <p class="alert alert-warning">
+            Tienes {{ unanswered() }} {{ unanswered() === 1 ? 'pregunta sin responder' : 'preguntas sin responder' }}.
+          </p>
+        } @else {
+          <p>Respondiste todas las preguntas.</p>
+        }
+        <p class="muted small">Una vez enviado, el intento se registra y no podrás cambiar tus respuestas.</p>
+        <div class="row">
+          <button type="button" class="btn btn-primary" (click)="submit()">Sí, enviar</button>
+          <button type="button" class="btn btn-secondary" (click)="cancelSubmit()">Seguir revisando</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,8 @@
+.score { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.n { font-size: 3rem; font-weight: 800; line-height: 1; }
+.n small { font-size: 1.2rem; font-weight: 600; color: var(--c-muted); }
+.ok .n { color: var(--c-success); }
+.bad .n { color: var(--c-danger); }
+.data { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem 1.25rem; margin: 0; }
+.data dt { font-size: 0.8rem; color: var(--c-muted); }
+.data dd { margin: 0; font-weight: 600; }

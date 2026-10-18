@@ -1,0 +1,4 @@
+.data { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem 1.25rem; margin: 0; }
+.data dt { font-size: 0.8rem; color: var(--c-muted); }
+.data dd { margin: 0; font-weight: 700; font-size: 1.1rem; }
+.rules { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.4rem; }

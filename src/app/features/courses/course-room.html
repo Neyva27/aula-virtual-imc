@@ -1,0 +1,120 @@
+<div class="stack">
+  @if (loading()) {
+    <p class="card muted" role="status">Cargando el curso…</p>
+  } @else if (!course() || !enrollment()) {
+    <p class="alert alert-warning">Aún no tienes un curso asignado. Comunícate con la empresa.</p>
+  } @else {
+    <header class="stack">
+      <div>
+        <h1>{{ course()!.name }}</h1>
+        <p class="muted">{{ course()!.description }}</p>
+      </div>
+      <div>
+        <div class="row between">
+          <strong>Progreso general</strong>
+          <span>{{ completed() }} de {{ total() }} videos · {{ percent() }}%</span>
+        </div>
+        <app-progress-bar [value]="percent()" label="Progreso general del curso" />
+      </div>
+    </header>
+
+    @if (error()) {
+      <p class="alert alert-danger" role="alert">{{ error() }}</p>
+    }
+
+    @if (current(); as video) {
+      <div class="room">
+        <section class="main stack">
+          <div class="player" role="img" aria-label="Marcador de posición del reproductor de video">
+            <div class="player__inner">
+              <span class="play" aria-hidden="true">▶</span>
+              <p>Video de demostración</p>
+              <small>Reproductor por integrar · {{ video.durationMin }} min</small>
+            </div>
+          </div>
+
+          <div class="card stack">
+            <div class="row between">
+              <h2>{{ video.order }}. {{ video.title }}</h2>
+              @if (isDone(video.id)) {
+                <span class="badge badge--success">Completado</span>
+              } @else {
+                <span class="badge badge--neutral">Pendiente</span>
+              }
+            </div>
+            @if (video.description) {
+              <p class="muted">{{ video.description }}</p>
+            }
+
+            <div class="row nav">
+              @if (prev(); as p) {
+                <a class="btn btn-secondary" [routerLink]="['/curso', p.id]">← Anterior</a>
+              }
+              @if (!isDone(video.id)) {
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  [class.is-loading]="marking()"
+                  [disabled]="marking()"
+                  (click)="markDone(true)"
+                >
+                  {{ next() ? 'Marcar como visto y continuar' : 'Marcar como visto' }}
+                </button>
+              }
+              @if (next(); as n) {
+                <a class="btn btn-secondary" [routerLink]="['/curso', n.id]">Siguiente →</a>
+              }
+            </div>
+            <p class="small muted">
+              Progreso simulado para la demostración. El registro real del tiempo de visualización
+              requiere un reproductor compatible y el backend.
+            </p>
+          </div>
+        </section>
+
+        <aside class="side stack">
+          <section class="card">
+            <h3>Contenido del curso</h3>
+            <ol class="list">
+              @for (v of videos(); track v.id) {
+                <li>
+                  <a
+                    [routerLink]="['/curso', v.id]"
+                    class="item"
+                    [class.is-current]="v.id === video.id"
+                    [attr.aria-current]="v.id === video.id ? 'true' : null"
+                  >
+                    <span class="num">{{ v.order }}</span>
+                    <span class="txt">
+                      <span class="t">{{ v.title }}</span>
+                      <span class="d">{{ v.durationMin }} min</span>
+                    </span>
+                    <span class="chk" [class.is-done]="isDone(v.id)" aria-hidden="true">
+                      {{ isDone(v.id) ? '✓' : '' }}
+                    </span>
+                    <span class="sr-only">{{ isDone(v.id) ? 'Completado' : 'Pendiente' }}</span>
+                  </a>
+                </li>
+              }
+            </ol>
+          </section>
+
+          <section class="card stack">
+            <h3>Examen</h3>
+            @if (approved()) {
+              <p class="alert alert-success small">Ya aprobaste el examen.</p>
+            } @else if (examUnlocked()) {
+              <p class="small">Completaste todos los videos. Ya puedes rendir el examen.</p>
+              <a class="btn btn-primary" routerLink="/examen/instrucciones">Ir al examen</a>
+            } @else {
+              <p class="small muted">
+                🔒 El examen permanece bloqueado hasta completar los {{ total() }} videos obligatorios.
+              </p>
+              <button type="button" class="btn btn-secondary" disabled>Ir al examen</button>
+            }
+          </section>
+        </aside>
+      </div>
+    }
+  }
+</div>

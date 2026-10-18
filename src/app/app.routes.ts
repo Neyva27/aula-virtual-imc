@@ -14,6 +14,13 @@ const myCertificates = () =>
 const certificateDetail = () =>
   import('./features/certificates/certificate-detail/certificate-detail').then((m) => m.CertificateDetail);
 
+const panel = () => import('./features/dashboard/panel').then((m) => m.Panel);
+const courseRoom = () => import('./features/courses/course-room').then((m) => m.CourseRoom);
+const examInstructions = () =>
+  import('./features/exam/instructions/instructions').then((m) => m.ExamInstructions);
+const exam = () => import('./features/exam/exam/exam').then((m) => m.Exam);
+const examResult = () => import('./features/exam/result/result').then((m) => m.ExamResult);
+
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'login' },
 
@@ -54,12 +61,12 @@ export const routes: Routes = [
     component: ParticipantLayout,
     canActivate: [roleGuard('participant')],
     children: [
-      { path: 'panel', loadComponent: placeholder, data: { title: 'Mi panel', stage: 4 } },
-      { path: 'curso', loadComponent: placeholder, data: { title: 'Mi curso', stage: 4 } },
-      { path: 'curso/:videoId', loadComponent: placeholder, data: { title: 'Mi curso', stage: 4 } },
-      { path: 'examen/instrucciones', loadComponent: placeholder, data: { title: 'Instrucciones del examen', stage: 4 } },
-      { path: 'examen/resultado', loadComponent: placeholder, data: { title: 'Resultado del examen', stage: 4 } },
-      { path: 'examen', loadComponent: placeholder, data: { title: 'Examen', stage: 4 } },
+      { path: 'panel', loadComponent: panel },
+      { path: 'curso', loadComponent: courseRoom },
+      { path: 'curso/:videoId', loadComponent: courseRoom },
+      { path: 'examen/instrucciones', loadComponent: examInstructions },
+      { path: 'examen/resultado', loadComponent: examResult },
+      { path: 'examen', loadComponent: exam },
       { path: 'certificados', loadComponent: myCertificates },
       { path: 'certificados/:id', loadComponent: certificateDetail },
     ],
