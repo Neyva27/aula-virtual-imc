@@ -32,7 +32,10 @@ export class Panel {
 
   readonly firstName = computed(() => this.user()?.fullName.split(' ')[0] ?? '');
   readonly total = computed(() => this.course()?.videos.filter((v) => v.published).length ?? 0);
-  readonly completed = computed(() => this.enrollment()?.completedVideoIds.length ?? 0);
+  readonly completed = computed(() => {
+    const ids = new Set((this.course()?.videos ?? []).filter((v) => v.published).map((v) => v.id));
+    return (this.enrollment()?.completedVideoIds ?? []).filter((id) => ids.has(id)).length;
+  });
   readonly percent = computed(() =>
     this.total() ? Math.round((this.completed() / this.total()) * 100) : 0,
   );

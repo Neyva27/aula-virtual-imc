@@ -41,8 +41,9 @@ export class ExamInstructions {
     const c = this.course();
     if (!e || !c) return 'Aún no tienes un curso asignado.';
     if (e.status === 'aprobado') return 'Ya aprobaste el examen.';
-    const total = c.videos.filter((v) => v.published).length;
-    if (e.completedVideoIds.length < total) return 'Debes completar todos los videos para habilitar el examen.';
+    const published = new Set(c.videos.filter((v) => v.published).map((v) => v.id));
+    const done = e.completedVideoIds.filter((id) => published.has(id)).length;
+    if (done < published.size) return 'Debes completar todos los videos para habilitar el examen.';
     if (this.remaining() <= 0 && !this.hasActive()) return 'Alcanzaste el límite de intentos permitidos.';
     return '';
   });

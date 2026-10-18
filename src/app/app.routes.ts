@@ -4,9 +4,6 @@ import { AuthLayout } from './layouts/auth-layout/auth-layout';
 import { ParticipantLayout } from './layouts/participant-layout/participant-layout';
 import { AdminLayout } from './layouts/admin-layout/admin-layout';
 
-const placeholder = () =>
-  import('./shared/components/placeholder-page').then((m) => m.PlaceholderPage);
-
 const verify = () =>
   import('./features/certificates/verify/verify').then((m) => m.Verify);
 const myCertificates = () =>
@@ -20,6 +17,14 @@ const examInstructions = () =>
   import('./features/exam/instructions/instructions').then((m) => m.ExamInstructions);
 const exam = () => import('./features/exam/exam/exam').then((m) => m.Exam);
 const examResult = () => import('./features/exam/result/result').then((m) => m.ExamResult);
+
+const adminDashboard = () => import('./features/administration/admin-dashboard').then((m) => m.AdminDashboard);
+const adminParticipants = () => import('./features/administration/admin-participants').then((m) => m.AdminParticipants);
+const adminCourses = () => import('./features/administration/admin-courses').then((m) => m.AdminCourses);
+const adminVideos = () => import('./features/administration/admin-videos').then((m) => m.AdminVideos);
+const adminEvaluations = () => import('./features/administration/admin-evaluations').then((m) => m.AdminEvaluations);
+const adminResults = () => import('./features/administration/admin-results').then((m) => m.AdminResults);
+const adminCertificates = () => import('./features/administration/admin-certificates').then((m) => m.AdminCertificates);
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'login' },
@@ -45,13 +50,13 @@ export const routes: Routes = [
     component: AdminLayout,
     canActivate: [roleGuard('admin')],
     children: [
-      { path: '', loadComponent: placeholder, data: { title: 'Dashboard', stage: 5 } },
-      { path: 'participantes', loadComponent: placeholder, data: { title: 'Participantes', stage: 5 } },
-      { path: 'cursos', loadComponent: placeholder, data: { title: 'Cursos', stage: 5 } },
-      { path: 'videos', loadComponent: placeholder, data: { title: 'Videos', stage: 5 } },
-      { path: 'evaluaciones', loadComponent: placeholder, data: { title: 'Evaluaciones', stage: 5 } },
-      { path: 'resultados', loadComponent: placeholder, data: { title: 'Seguimiento y resultados', stage: 5 } },
-      { path: 'certificados', loadComponent: placeholder, data: { title: 'Certificados emitidos', stage: 5 } },
+      { path: '', loadComponent: adminDashboard },
+      { path: 'participantes', loadComponent: adminParticipants },
+      { path: 'cursos', loadComponent: adminCourses },
+      { path: 'videos', loadComponent: adminVideos },
+      { path: 'evaluaciones', loadComponent: adminEvaluations },
+      { path: 'resultados', loadComponent: adminResults },
+      { path: 'certificados', loadComponent: adminCertificates },
     ],
   },
 
