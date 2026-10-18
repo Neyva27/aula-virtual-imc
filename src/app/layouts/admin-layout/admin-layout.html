@@ -1,0 +1,46 @@
+<div class="admin">
+  <aside class="side" [class.is-open]="menuOpen()" aria-label="Menú de administración">
+    <div class="side__logo">
+      <app-logo-placeholder [light]="true" />
+    </div>
+    <nav class="side__nav">
+      @for (link of links; track link.path) {
+        <a
+          [routerLink]="link.path"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{ exact: link.exact }"
+          (click)="closeMenu()"
+          >{{ link.label }}</a
+        >
+      }
+    </nav>
+    <p class="side__demo">Panel de demostración</p>
+  </aside>
+
+  @if (menuOpen()) {
+    <div class="backdrop" (click)="closeMenu()" aria-hidden="true"></div>
+  }
+
+  <div class="admin__body">
+    <header class="bar">
+      <button
+        type="button"
+        class="btn btn-ghost bar__menu"
+        (click)="toggleMenu()"
+        [attr.aria-expanded]="menuOpen()"
+        aria-label="Abrir o cerrar menú"
+      >
+        ☰ Menú
+      </button>
+      <span class="bar__title">Administración</span>
+      <div class="bar__user">
+        <span class="bar__name">{{ user()?.fullName }}</span>
+        <button type="button" class="btn btn-secondary" (click)="logout()">Salir</button>
+      </div>
+    </header>
+    <div class="demo-bar">Versión de demostración · los datos mostrados son de prueba</div>
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

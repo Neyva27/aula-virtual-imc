@@ -1,0 +1,5 @@
+.head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.data { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem 1.25rem; margin: 1rem 0 1.25rem; }
+.data dt { font-size: 0.8rem; color: var(--c-muted); }
+.data dd { margin: 0; font-weight: 600; }
+.code { font-family: Consolas, 'Courier New', monospace; letter-spacing: 0.03em; }

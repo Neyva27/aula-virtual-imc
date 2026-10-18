@@ -1,0 +1,42 @@
+<div class="stack">
+  <a routerLink="/certificados" class="small">← Volver a Mis certificados</a>
+
+  @if (loading()) {
+    <p class="card muted" role="status">Cargando certificado…</p>
+  } @else if (!cert()) {
+    <article class="card stack">
+      <h1>Certificado no disponible</h1>
+      <p>No encontramos este certificado en tu cuenta.</p>
+      <a class="btn btn-primary" routerLink="/certificados">Ir a Mis certificados</a>
+    </article>
+  } @else {
+    <header class="row bar">
+      <h1>Vista previa del certificado</h1>
+      <div class="row actions">
+        <button
+          type="button"
+          class="btn btn-primary"
+          [class.is-loading]="downloading()"
+          [disabled]="downloading()"
+          (click)="download()"
+        >
+          Descargar PDF
+        </button>
+        <a class="btn btn-secondary" [routerLink]="['/verificar', cert()!.code]">Verificar autenticidad</a>
+      </div>
+    </header>
+
+    @if (downloadError()) {
+      <p class="alert alert-danger" role="alert">{{ downloadError() }}</p>
+    }
+
+    <div class="preview">
+      <app-certificate-view [cert]="cert()!" [qr]="qr()" />
+    </div>
+
+    <p class="alert alert-info small">
+      Vista previa con plantilla provisional. El QR es de prueba y apunta a la página de verificación de
+      esta demostración; el QR oficial y su validación dependerán del backend.
+    </p>
+  }
+</div>

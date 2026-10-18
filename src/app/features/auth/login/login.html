@@ -1,0 +1,88 @@
+<div class="stack">
+  <section class="card">
+    <h1>Iniciar sesión</h1>
+    <p class="muted">Ingresa con el usuario que te entregó la empresa.</p>
+
+    @if (errorMessage()) {
+      <p class="alert alert-danger" role="alert">{{ errorMessage() }}</p>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="email">Correo electrónico</label>
+        <input
+          id="email"
+          class="input"
+          type="email"
+          autocomplete="username"
+          formControlName="email"
+          [class.is-invalid]="form.controls.email.invalid && form.controls.email.touched"
+        />
+        @if (form.controls.email.touched && form.controls.email.errors) {
+          <span class="error-text">
+            @if (form.controls.email.errors['required']) {
+              Ingresa tu correo electrónico.
+            } @else {
+              Escribe un correo válido, por ejemplo nombre&#64;dominio.com.
+            }
+          </span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <div class="pw">
+          <input
+            id="password"
+            class="input"
+            [type]="showPassword() ? 'text' : 'password'"
+            autocomplete="current-password"
+            formControlName="password"
+            [class.is-invalid]="form.controls.password.invalid && form.controls.password.touched"
+          />
+          <button
+            type="button"
+            class="btn btn-ghost pw__toggle"
+            (click)="togglePassword()"
+            [attr.aria-pressed]="showPassword()"
+          >
+            {{ showPassword() ? 'Ocultar' : 'Mostrar' }}
+          </button>
+        </div>
+        @if (form.controls.password.touched && form.controls.password.errors) {
+          <span class="error-text">
+            @if (form.controls.password.errors['required']) {
+              Ingresa tu contraseña.
+            } @else {
+              La contraseña debe tener al menos 6 caracteres.
+            }
+          </span>
+        }
+      </div>
+
+      <button type="submit" class="btn btn-primary full" [class.is-loading]="loading()" [disabled]="loading()">
+        Ingresar
+      </button>
+    </form>
+  </section>
+
+  <section class="card demo">
+    <h2>Usuarios de prueba</h2>
+    <p class="small muted">
+      Solo para la demostración (no es autenticación real). Contraseña de todos:
+      <strong>{{ demoPassword }}</strong>
+    </p>
+    <ul class="demo__list">
+      @for (acc of demoAccounts; track acc.email) {
+        <li>
+          <div>
+            <strong class="small">{{ acc.label }}</strong><br />
+            <span class="small muted">{{ acc.email }}</span>
+          </div>
+          <button type="button" class="btn btn-secondary" (click)="fill(acc.email)">Usar</button>
+        </li>
+      }
+    </ul>
+    <p class="small"><a href="/verificar">Verificar un certificado</a></p>
+  </section>
+</div>

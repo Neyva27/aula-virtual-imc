@@ -1,0 +1,101 @@
+<div class="stack">
+  <header>
+    <h1>Mis certificados</h1>
+    <p class="muted">Aquí encontrarás los certificados de los cursos que has aprobado.</p>
+  </header>
+
+  @if (loading()) {
+    <p class="card muted" role="status">Cargando tus certificados…</p>
+  } @else if (error()) {
+    <p class="alert alert-danger" role="alert">{{ error() }}</p>
+  } @else {
+    @if (downloadError()) {
+      <p class="alert alert-danger" role="alert">{{ downloadError() }}</p>
+    }
+
+    @switch (state()) {
+      @case ('available') {
+        @for (cert of certificates(); track cert.id) {
+          <article class="card">
+            <div class="head">
+              <div>
+                <h2>{{ cert.courseName }}</h2>
+                <p class="muted small">{{ cert.entityName }}</p>
+              </div>
+              <span class="badge" [class]="cert.status === 'vigente' ? 'badge--success' : 'badge--danger'">
+                {{ cert.status === 'vigente' ? 'Vigente' : 'Revocado' }}
+              </span>
+            </div>
+
+            <dl class="data">
+              <div><dt>Participante</dt><dd>{{ cert.participantName }}</dd></div>
+              <div><dt>Fecha de aprobación</dt><dd>{{ cert.approvalDate | date: 'dd/MM/yyyy' }}</dd></div>
+              <div><dt>Fecha de emisión</dt><dd>{{ cert.issueDate | date: 'dd/MM/yyyy' }}</dd></div>
+              <div><dt>Nota obtenida</dt><dd>{{ cert.score }} / {{ scaleMax }}</dd></div>
+              <div><dt>Horas de formación</dt><dd>{{ cert.trainingHours }} h</dd></div>
+              <div><dt>Código único</dt><dd class="code">{{ cert.code }}</dd></div>
+            </dl>
+
+            <div class="row">
+              <a class="btn btn-secondary" [routerLink]="['/certificados', cert.id]">Visualizar</a>
+              <button
+                type="button"
+                class="btn btn-primary"
+                [class.is-loading]="downloadingId() === cert.id"
+                [disabled]="downloadingId() === cert.id"
+                (click)="download(cert)"
+              >
+                Descargar PDF
+              </button>
+              <a class="btn btn-ghost" [routerLink]="['/verificar', cert.code]">Verificar autenticidad</a>
+            </div>
+          </article>
+        }
+        <p class="alert alert-info small">
+          Plantilla de certificado provisional y QR de prueba. La plantilla oficial se incorporará cuando
+          la entregue la empresa.
+        </p>
+      }
+
+      @case ('pending') {
+        <article class="card stack">
+          <span class="badge badge--warning">Pendiente de habilitación</span>
+          <h2>Tu certificado aún no está habilitado</h2>
+          <p>
+            Ya aprobaste el examen. En cuanto la plataforma emita tu certificado, lo verás aquí para
+            visualizarlo y descargarlo.
+          </p>
+        </article>
+      }
+
+      @default {
+        <article class="card stack">
+          <span class="badge badge--neutral">Sin certificado disponible</span>
+          <h2>Todavía no tienes certificados</h2>
+          @switch (enrollment()?.status) {
+            @case ('listo_examen') {
+              <p>Ya completaste los videos. Rinde el examen y, si apruebas, tu certificado se habilitará.</p>
+              <a class="btn btn-primary" routerLink="/examen/instrucciones">Ir al examen</a>
+            }
+            @case ('desaprobado') {
+              @if (remainingAttempts() > 0) {
+                <p>
+                  No alcanzaste la nota mínima. Te {{ remainingAttempts() === 1 ? 'queda' : 'quedan' }}
+                  <strong>{{ remainingAttempts() }}</strong>
+                  {{ remainingAttempts() === 1 ? 'intento disponible' : 'intentos disponibles' }}.
+                </p>
+                <a class="btn btn-primary" routerLink="/examen/instrucciones">Volver a intentarlo</a>
+              } @else {
+                <p>No alcanzaste la nota mínima y ya no tienes intentos disponibles. Comunícate con la empresa.</p>
+              }
+            }
+            @default {
+              <p>El certificado se habilita cuando completas todos los videos del curso y apruebas el examen.</p>
+              <a class="btn btn-primary" routerLink="/curso">Ir a mi curso</a>
+            }
+          }
+        </article>
+      }
+    }
+  }
+</div>

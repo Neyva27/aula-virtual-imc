@@ -1,0 +1,17 @@
+.auth { display: grid; grid-template-columns: minmax(300px, 40%) 1fr; min-height: 100vh; }
+.auth__brand {
+  display: flex; flex-direction: column; justify-content: space-between; gap: 2rem;
+  padding: 2.5rem; color: #fff;
+  background: linear-gradient(160deg, var(--c-primary) 0%, var(--c-primary-700) 100%);
+}
+.auth__text h2 { color: #fff; font-size: 1.6rem; }
+.auth__text p { color: #cfd8f0; max-width: 34ch; }
+.auth__demo { margin: 0; font-size: 0.85rem; color: #aab7de; }
+.auth__main { display: grid; place-items: start center; padding: 2rem 1rem; }
+.auth__content { width: 100%; max-width: 560px; }
+
+@media (max-width: 800px) {
+  .auth { grid-template-columns: 1fr; }
+  .auth__brand { padding: 1.25rem; gap: 1rem; }
+  .auth__text, .auth__demo { display: none; }
+}

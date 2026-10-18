@@ -1,0 +1,81 @@
+<div class="stack">
+  <section class="card stack">
+    <div>
+      <h1>Verificar certificado</h1>
+      <p class="muted">Comprueba que un certificado corresponde a una aprobación registrada.</p>
+    </div>
+
+    <div class="modes" role="group" aria-label="Forma de verificación">
+      <button type="button" class="btn" [class.btn-primary]="mode() === 'code'" [class.btn-secondary]="mode() !== 'code'" (click)="setMode('code')">
+        Por código
+      </button>
+      <button type="button" class="btn" [class.btn-primary]="mode() === 'dni'" [class.btn-secondary]="mode() !== 'dni'" (click)="setMode('dni')">
+        Por DNI
+      </button>
+    </div>
+
+    <form (submit)="$event.preventDefault(); search()" novalidate>
+      <div class="field">
+        <label for="query">{{ mode() === 'code' ? 'Código del certificado' : 'DNI del participante' }}</label>
+        <input
+          id="query"
+          class="input"
+          type="text"
+          [formControl]="query"
+          [attr.inputmode]="mode() === 'dni' ? 'numeric' : 'text'"
+          [placeholder]="mode() === 'code' ? 'Ej.: IMC-DEMO-0001' : 'Ej.: 00000001'"
+          [class.is-invalid]="(query.invalid && query.touched) || inputError()"
+        />
+        @if (query.invalid && query.touched) {
+          <span class="error-text">Ingresa un valor para verificar.</span>
+        }
+        @if (inputError()) {
+          <span class="error-text">{{ inputError() }}</span>
+        }
+      </div>
+      <button type="submit" class="btn btn-primary" [class.is-loading]="searching()" [disabled]="searching()">
+        Verificar
+      </button>
+    </form>
+
+    <p class="alert alert-info small">
+      Verificación de demostración: consulta solo datos de prueba (por ejemplo, el código
+      <strong>IMC-DEMO-0001</strong> o el DNI <strong>00000001</strong>). La verificación definitiva consultará
+      el backend y confirmará que el certificado corresponde a una aprobación registrada.
+    </p>
+  </section>
+
+  @if (searching()) {
+    <p class="card muted" role="status">Verificando…</p>
+  }
+
+  @if (searched() && !searching()) {
+    @if (results().length === 0) {
+      <section class="card stack" role="status">
+        <span class="badge badge--warning">No encontrado</span>
+        <h2>No encontramos un certificado con “{{ lastQuery() }}”</h2>
+        <p class="muted">
+          Revisa que el dato esté bien escrito. Si el problema continúa, comunícate con la empresa capacitadora.
+        </p>
+      </section>
+    } @else {
+      @for (c of results(); track c.id) {
+        <section class="card stack" role="status">
+          @if (c.status === 'vigente') {
+            <span class="badge badge--success">Certificado válido</span>
+          } @else {
+            <span class="badge badge--danger">Certificado revocado</span>
+          }
+          <dl class="data">
+            <div><dt>Código</dt><dd class="code">{{ c.code }}</dd></div>
+            <div><dt>Participante</dt><dd>{{ c.participantName }}</dd></div>
+            <div><dt>Curso</dt><dd>{{ c.courseName }}</dd></div>
+            <div><dt>Fecha de emisión</dt><dd>{{ c.issueDate | date: 'dd/MM/yyyy' }}</dd></div>
+            <div><dt>Horas de formación</dt><dd>{{ c.trainingHours }} h</dd></div>
+            <div><dt>Estado de la verificación</dt><dd>{{ c.status === 'vigente' ? 'Vigente' : 'Revocado' }}</dd></div>
+          </dl>
+        </section>
+      }
+    }
+  }
+</div>

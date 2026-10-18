@@ -1,0 +1,24 @@
+<a class="skip" href="#contenido">Saltar al contenido</a>
+
+<div class="demo-bar">Versión de demostración · los datos mostrados son de prueba</div>
+
+<header class="top">
+  <div class="container top__inner">
+    <a routerLink="/panel" class="top__logo" aria-label="Ir a mi panel">
+      <app-logo-placeholder />
+    </a>
+    <nav class="top__nav" aria-label="Navegación principal">
+      @for (link of links; track link.path) {
+        <a [routerLink]="link.path" routerLinkActive="is-active">{{ link.label }}</a>
+      }
+    </nav>
+    <div class="top__user">
+      <span class="top__name">{{ user()?.fullName }}</span>
+      <button type="button" class="btn btn-ghost" (click)="logout()">Salir</button>
+    </div>
+  </div>
+</header>
+
+<main id="contenido" class="container main">
+  <router-outlet />
+</main>

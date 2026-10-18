@@ -1,0 +1,5 @@
+.modes { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.data { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem 1.25rem; margin: 0; }
+.data dt { font-size: 0.8rem; color: var(--c-muted); }
+.data dd { margin: 0; font-weight: 600; }
+.code { font-family: Consolas, 'Courier New', monospace; letter-spacing: 0.03em; }

@@ -1,1 +1,156 @@
-/* You can add global styles to this file, and also import other style files */
+/* ===== Tokens de diseño ===== */
+:root {
+  --c-primary: #0a1e50; /* azul corporativo (theme-color del sitio de IMC) */
+  --c-primary-700: #07163b;
+  --c-primary-600: #12307a;
+  --c-primary-100: #e6ebf7;
+  --c-accent: #08796f;
+  --c-accent-100: #dff3f0;
+  --c-bg: #f4f6fa;
+  --c-surface: #ffffff;
+  --c-border: #d9dfeb;
+  --c-text: #172033;
+  --c-muted: #5b6579;
+  --c-success: #1b7f4b;
+  --c-success-100: #e3f4ea;
+  --c-warning: #8a5a00;
+  --c-warning-100: #fdf1d6;
+  --c-danger: #b42318;
+  --c-danger-100: #fde8e6;
+  --c-info: #1d4ed8;
+  --c-info-100: #e5edff;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 2px rgba(10, 30, 80, 0.06), 0 4px 14px rgba(10, 30, 80, 0.06);
+  --font: 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --space: 1rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--c-text);
+  background: var(--c-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  margin: 0 0 0.5rem;
+  color: var(--c-primary);
+}
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1.05rem; }
+p { margin: 0 0 0.75rem; }
+a { color: var(--c-primary-600); }
+
+:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* ===== Utilidades ===== */
+.container { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 1rem; }
+.stack > * + * { margin-top: var(--space); }
+.row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+.muted { color: var(--c-muted); }
+.small { font-size: 0.875rem; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ===== Tarjetas ===== */
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+}
+.grid { display: grid; gap: 1rem; }
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+/* ===== Botones ===== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  min-height: 42px; padding: 0.5rem 1.1rem;
+  font: inherit; font-weight: 600; text-decoration: none; cursor: pointer;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--c-primary); color: #fff; }
+.btn-primary:hover { background: var(--c-primary-600); }
+.btn-secondary { background: #fff; color: var(--c-primary); border-color: var(--c-primary); }
+.btn-secondary:hover { background: var(--c-primary-100); }
+.btn-ghost { background: transparent; color: var(--c-primary); }
+.btn-ghost:hover { background: var(--c-primary-100); }
+.btn-danger { background: var(--c-danger); color: #fff; }
+.btn:disabled, .btn[aria-disabled='true'] { opacity: 0.55; cursor: not-allowed; }
+.btn.is-loading { position: relative; color: transparent; pointer-events: none; }
+.btn.is-loading::after {
+  content: ''; position: absolute; width: 18px; height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.45); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Formularios ===== */
+.field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
+.field label { font-weight: 600; font-size: 0.95rem; }
+.input {
+  width: 100%; min-height: 44px; padding: 0.55rem 0.75rem;
+  font: inherit; color: var(--c-text); background: #fff;
+  border: 1px solid #aeb7c8; border-radius: var(--radius-sm);
+}
+.input:hover { border-color: var(--c-primary-600); }
+.input.is-invalid { border-color: var(--c-danger); background: #fffafa; }
+.error-text { color: var(--c-danger); font-size: 0.875rem; }
+
+/* ===== Mensajes ===== */
+.alert { padding: 0.75rem 1rem; border-radius: var(--radius-sm); border: 1px solid; font-size: 0.95rem; }
+.alert-info { background: var(--c-info-100); border-color: #b9ccff; color: #173a9e; }
+.alert-warning { background: var(--c-warning-100); border-color: #f1d28a; color: var(--c-warning); }
+.alert-danger { background: var(--c-danger-100); border-color: #f4b6b0; color: var(--c-danger); }
+.alert-success { background: var(--c-success-100); border-color: #a9dcc0; color: var(--c-success); }
+
+/* ===== Etiquetas de estado ===== */
+.badge {
+  display: inline-block; padding: 0.15rem 0.65rem; border-radius: 999px;
+  font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+}
+.badge--neutral { background: #e8ebf1; color: #3d4659; }
+.badge--info { background: var(--c-info-100); color: var(--c-info); }
+.badge--warning { background: var(--c-warning-100); color: var(--c-warning); }
+.badge--success { background: var(--c-success-100); color: var(--c-success); }
+.badge--danger { background: var(--c-danger-100); color: var(--c-danger); }
+
+/* ===== Tablas ===== */
+.table-wrap { overflow-x: auto; border: 1px solid var(--c-border); border-radius: var(--radius); background: #fff; }
+table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+th, td { padding: 0.7rem 0.9rem; text-align: left; border-bottom: 1px solid var(--c-border); }
+th { background: var(--c-primary-100); color: var(--c-primary); font-weight: 700; white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

@@ -1,0 +1,40 @@
+<article class="cert" aria-label="Vista previa del certificado">
+  <div class="frame"></div>
+  <span class="ribbon">PLANTILLA PROVISIONAL</span>
+
+  <header class="head">
+    <div class="logo">LOGO OFICIAL<br />(por incorporar)</div>
+    <div class="entity">{{ cert().entityName }}</div>
+  </header>
+
+  <h2 class="title">CERTIFICADO</h2>
+  <p class="lead">Se otorga a</p>
+  <p class="name">{{ cert().participantName }}</p>
+  <p class="lead">por haber aprobado el curso</p>
+  <p class="course">{{ cert().courseName }}</p>
+
+  <ul class="facts">
+    <li>Fecha de aprobación: <strong>{{ cert().approvalDate | date: 'dd/MM/yyyy' }}</strong></li>
+    <li>Nota: <strong>{{ cert().score }} / {{ scaleMax }}</strong></li>
+    <li>Horas de formación: <strong>{{ cert().trainingHours }} h</strong></li>
+  </ul>
+  <p class="issue">Fecha de emisión: {{ cert().issueDate | date: 'dd/MM/yyyy' }}</p>
+
+  <footer class="foot">
+    <div class="sign">
+      <span class="line"></span>
+      <span>Firma autorizada (por definir)</span>
+    </div>
+    <div class="qr">
+      @if (qr()) {
+        <img [src]="qr()" alt="Código QR de prueba del certificado" />
+      } @else {
+        <div class="qr__empty">QR</div>
+      }
+      <strong>Código: {{ cert().code }}</strong>
+      <small>QR de prueba</small>
+    </div>
+  </footer>
+
+  <p class="legal">Documento de demostración · sin validez oficial</p>
+</article>
