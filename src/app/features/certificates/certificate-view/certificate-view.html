@@ -10,13 +10,15 @@
   <h2 class="title">CERTIFICADO</h2>
   <p class="lead">Se otorga a</p>
   <p class="name">{{ cert().participantName }}</p>
-  <p class="lead">por haber aprobado el curso</p>
+  @if (identity()) { <p class="identity" data-test="identity">{{ identity() }}</p> }
+  <p class="lead">{{ cert().imported ? 'por haber completado el curso' : 'por haber aprobado el curso' }}</p>
   <p class="course">{{ cert().courseName }}</p>
 
   <ul class="facts">
-    <li>Fecha de aprobación: <strong>{{ cert().approvalDate | date: 'dd/MM/yyyy' }}</strong></li>
-    <li>Nota: <strong>{{ cert().score }} / {{ scaleMax }}</strong></li>
-    <li>Horas de formación: <strong>{{ cert().trainingHours }} h</strong></li>
+    @if (cert().courseLevel) { <li>Nivel: <strong>{{ levelLabel() }}</strong></li> }
+    @if (cert().approvalDate) { <li>Fecha de aprobación: <strong>{{ cert().approvalDate | date: 'dd/MM/yyyy' }}</strong></li> }
+    @if (cert().score !== null) { <li>Nota: <strong>{{ cert().score }} / {{ cert().scaleMax }}</strong></li> }
+    <li>Horas de formación: <strong>{{ cert().trainingHours | trainingHours }}</strong></li>
   </ul>
   <p class="issue">Fecha de emisión: {{ cert().issueDate | date: 'dd/MM/yyyy' }}</p>
 
@@ -36,5 +38,5 @@
     </div>
   </footer>
 
-  <p class="legal">Documento de demostración · sin validez oficial</p>
+  <p class="legal demo-only">Documento de demostración · sin validez oficial</p>
 </article>

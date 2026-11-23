@@ -1,33 +1,97 @@
-.between { justify-content: space-between; }
-.room { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1.25rem; align-items: start; }
-.player {
-  aspect-ratio: 16 / 9; display: grid; place-items: center; text-align: center; color: #fff;
-  background: linear-gradient(135deg, #0a1e50, #12307a); border-radius: var(--radius);
+.head { display: grid; gap: var(--space-3); }
+.title-row { gap: var(--space-3); }
+.title-row h1 { margin: 0; }
+.desc { margin: 0; }
+.progress { display: grid; gap: var(--space-2); }
+
+/* Escritorio: video y estado a la izquierda, temario fijo a la derecha. Móvil: video, temario y estado. */
+.room {
+  display: grid; gap: var(--space-5); align-items: start;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-areas: 'main side' 'status side';
 }
-.player__inner p { margin: 0.25rem 0 0; font-weight: 700; }
-.player__inner small { color: #c5d0f0; }
-.play {
-  display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18); font-size: 1.6rem; padding-left: 4px;
-}
-.nav { margin-top: 0.25rem; }
-.list { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; gap: 0.35rem; }
+.main { grid-area: main; min-width: 0; }
+.side { grid-area: side; position: sticky; top: calc(64px + var(--space-4)); }
+.status { grid-area: status; display: grid; gap: var(--space-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.status__card h3, .side h3 { display: flex; align-items: center; gap: var(--space-2); margin: 0; }
+/* Solo margin-bottom: la separación superior la da .stack. */
+.status__card p { margin-bottom: 0; }
+.locked { display: flex; gap: var(--space-2); align-items: flex-start; }
+.locked app-icon { margin-top: 2px; }
+
+.lesson__head { align-items: flex-start; flex-wrap: nowrap; }
+.lesson__head h2 { margin: 0; }
+.lesson__num { display: block; font-size: var(--text-xs); font-weight: var(--weight-semibold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--c-accent-700); }
+.dur { font-size: var(--text-sm); font-weight: var(--weight-regular); color: var(--c-muted); white-space: nowrap; }
+.nav { margin-top: var(--space-1); }
+
+.list { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: var(--space-2); }
 .item {
-  display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.7rem;
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3);
   border: 1px solid var(--c-border); border-radius: var(--radius-sm); text-decoration: none; color: var(--c-text);
 }
-.item:hover { background: var(--c-primary-100); }
+.item:hover { background: var(--c-primary-50); border-color: var(--c-primary-200); }
 .item.is-current { border-color: var(--c-primary); background: var(--c-primary-100); }
 .num {
   display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
-  background: var(--c-primary); color: #fff; font-size: 0.85rem; font-weight: 700; flex-shrink: 0;
+  background: var(--c-primary); color: var(--c-on-primary); font-size: var(--text-xs); font-weight: var(--weight-bold); flex-shrink: 0;
 }
 .txt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.t { font-size: 0.9rem; font-weight: 600; }
-.d { font-size: 0.8rem; color: var(--c-muted); }
+.t { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.d { font-size: var(--text-xs); color: var(--c-muted); }
 .chk {
   display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
-  border: 2px solid var(--c-border); font-size: 0.8rem; color: #fff; flex-shrink: 0;
+  border: 2px solid var(--c-border); color: var(--c-on-primary); flex-shrink: 0;
 }
 .chk.is-done { background: var(--c-success); border-color: var(--c-success); }
-@media (max-width: 900px) { .room { grid-template-columns: 1fr; } }
+.module { margin: var(--space-4) 0 var(--space-1); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--c-muted); }
+
+/* M3: módulos en acordeón (solo cuando el curso tiene más de un módulo). */
+.module__toggle {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 40px; padding: var(--space-1) var(--space-2);
+  border: 0; border-radius: var(--radius-sm); background: var(--c-bg); color: var(--c-primary);
+  font: inherit; font-size: var(--text-sm); font-weight: var(--weight-bold); text-transform: none; letter-spacing: 0; text-align: left; cursor: pointer;
+}
+.module__toggle:hover { background: var(--c-primary-50); }
+.module__title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.module__count { flex: none; font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--c-muted); }
+.chev { flex: none; transition: transform 0.15s; transform: rotate(-90deg); }
+.chev.is-open { transform: none; }
+.module__desc { margin: var(--space-1) var(--space-2) var(--space-2); }
+.lesson__module { display: block; font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--c-muted); }
+
+@media (max-width: 900px) {
+  .room { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'main' 'side' 'status'; }
+  .side { position: static; }
+}
+@media (max-width: 600px) {
+  .lesson__head { flex-wrap: wrap; }
+  .nav .btn { flex: 1 1 auto; }
+}
+
+/* Sesiones en vivo (20/11/2026). */
+.live-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.live-item { display: grid; gap: 2px; justify-items: start; overflow-wrap: anywhere; }
+.live-item + .live-item { border-top: 1px solid var(--c-border); padding-top: var(--space-3); }
+.live-item .btn { margin-top: var(--space-1); }
+.is-cancelled { text-decoration: line-through; color: var(--c-muted); }
+
+/* Secciones del aula (20/11/2026). */
+.sections { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+.live-group { margin: var(--space-2) 0 0; font-size: 0.9rem; color: var(--c-muted); }
+
+/* Recuperación autorizada (20/11/2026): tarjeta dentro de la sección del examen. */
+.recovery-card {
+  border: 1px solid var(--c-border);
+  border-left: 4px solid var(--c-primary);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.9rem;
+  gap: 0.5rem;
+}
+.recovery-card--open { border-left-color: var(--c-success); }
+.recovery-card__status { margin: 0; }
+.recovery-card__data { display: grid; gap: 0.3rem; margin: 0; }
+.recovery-card__data div { display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.5rem; }
+.recovery-card__data dt { color: var(--c-muted); font-weight: 600; }
+.recovery-card__data dd { margin: 0; overflow-wrap: anywhere; }
+.recovery-card p { margin: 0; }

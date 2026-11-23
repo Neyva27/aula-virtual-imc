@@ -42,3 +42,65 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# ==========================================
+# SEGURIDAD Y CREDENCIALES
+# ==========================================
+**/.env
+**/.env.*
+!**/.env.example
+
+# ==========================================
+# DEPENDENCIAS Y COMPILACIONES
+# ==========================================
+**/node_modules/
+**/dist/
+**/coverage/
+**/*.tsbuildinfo
+
+# ==========================================
+# BASES DE DATOS Y RESPALDOS
+# ==========================================
+*.sql
+*.sql.gz
+*.dump
+
+# ==========================================
+# ALMACENAMIENTO LOCAL
+# ==========================================
+/backend/storage/*
+
+# ==========================================
+# ARCHIVOS TEMPORALES
+# ==========================================
+*.log
+*.tmp
+
+# ==========================================
+# PUBLICACIÓN EN GITHUB
+# ==========================================
+# Las migraciones de Prisma y la plantilla sin claves sí se versionan (excepciones a *.sql).
+!backend/prisma/migrations/*/migration.sql
+!backend/prisma/sql/crear-bases-locales.sql
+
+# Configuración local, bases de datos, claves y respaldos
+.claude/
+*.sqlite
+*.sqlite3
+*.db
+*.pem
+*.key
+*.p12
+*.pfx
+respaldo*.json
+/respaldos/
+
+# Reportes y certificados generados localmente
+certificados-2026-11-20.pdf
+certificados-2026-11-23.pdf
+/certificados-*.pdf
+/evaluaciones-rendidas-*.pdf
+
+# Documentos privados de reuniones
+docs/referencias/Reuni*.docx
+docs/referencias/Reuni*.pdf

@@ -1,56 +1,103 @@
 <div class="stack">
-  <h1>Resultado del examen</h1>
+  <header class="page-head">
+    <h1>Resultado del examen</h1>
+    @if (course(); as c) {
+      <p class="muted course-name">Curso: <strong>{{ c.name }}</strong></p>
+    }
+  </header>
 
   @if (loading()) {
     <p class="card muted" role="status">Cargando resultado…</p>
   } @else if (error()) {
     <p class="alert alert-danger" role="alert">{{ error() }}</p>
   } @else if (!attempt()) {
-    <article class="card stack">
+    <article class="card empty">
+      <app-icon name="flag" size="lg" />
       <p>Todavía no registras intentos del examen.</p>
-      <div><a class="btn btn-primary" routerLink="/examen/instrucciones">Ir al examen</a></div>
+      <a class="btn btn-primary" [routerLink]="['/cursos', courseId(), 'examen']">Ir al examen</a>
     </article>
   } @else {
     @let a = attempt()!;
-    <section class="card stack">
-      <div class="score" [class.ok]="a.passed" [class.bad]="!a.passed">
-        <span class="n">{{ a.score }}<small> / {{ config()!.scaleMax }}</small></span>
+    @if (pending(a)) {
+      <!-- M5: con preguntas abiertas sin calificar no se muestra nota ni aprobado/desaprobado. -->
+      <section class="card stack result result--review" data-review>
+        <div class="score">
+          <span class="score__icon" aria-hidden="true"><app-icon name="clock" size="lg" /></span>
+          <div class="score__text">
+            <span class="score__label">Estado</span>
+            <span class="n">Pendiente de calificación</span>
+          </div>
+          <span class="badge badge--warning">Pendiente de calificación</span>
+        </div>
+        <dl class="data">
+          <div><dt>Fecha del intento</dt><dd>{{ a.date | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
+          <div><dt>Duración</dt><dd>{{ a.durationSec | attemptDuration }}</dd></div>
+          <div><dt>Intentos disponibles</dt><dd>{{ remaining() }} de {{ maxAttempts() }}</dd></div>
+        </dl>
+        <p class="alert alert-info">
+          Tu examen tiene preguntas de respuesta abierta que califica el instructor. Cuando termine la revisión verás
+          aquí tu nota y si aprobaste. Si apruebas, se emitirá tu certificado.
+        </p>
+        <div class="row actions">
+          <a class="btn btn-secondary" [routerLink]="['/cursos', courseId()]">Volver al aula</a>
+          <a class="btn btn-ghost" routerLink="/panel">Ir a mis cursos</a>
+        </div>
+      </section>
+    } @else {
+    <section class="card stack result" [class.ok]="a.passed" [class.bad]="!a.passed">
+      <div class="score">
+        <span class="score__icon" aria-hidden="true"><app-icon [name]="a.passed ? 'check-circle' : 'x-circle'" size="lg" /></span>
+        <div class="score__text">
+          <!--
+            R4 (decisión del 10/11/2026): el estudiante ve solo su nota final vigente. Con recuperación es la de la
+            recuperación (mayor o menor); la del examen regular no se muestra aquí (sí al Instructor).
+          -->
+          <span class="score__label">{{ result()?.recovery ? 'Nota final' : 'Nota obtenida' }}</span>
+          <span class="n">{{ a.score }}<small> / {{ a.scaleMax }}</small></span>
+        </div>
         <span class="badge" [class]="a.passed ? 'badge--success' : 'badge--danger'">
           {{ a.passed ? 'Aprobado' : 'Desaprobado' }}
         </span>
       </div>
 
       <dl class="data">
-        <div><dt>Nota obtenida</dt><dd>{{ a.score }} / {{ config()!.scaleMax }}</dd></div>
-        <div><dt>Nota mínima configurada</dt><dd>{{ config()!.passScore }} / {{ config()!.scaleMax }}</dd></div>
-        <div><dt>Respuestas correctas</dt><dd>{{ a.correctCount }} de {{ a.totalQuestions }}</dd></div>
+        @if (sameExam()) {
+          <div><dt>Nota mínima configurada</dt><dd>{{ exam()!.passScore }} / {{ exam()!.scaleMax }}</dd></div>
+        }
         <div><dt>Fecha del intento</dt><dd>{{ a.date | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
-        <div><dt>Duración</dt><dd>{{ duration(a.durationSec) }}</dd></div>
-        <div><dt>Intentos disponibles</dt><dd>{{ remaining() }} de {{ config()!.maxAttempts }}</dd></div>
+        <div><dt>Duración</dt><dd>{{ a.durationSec | attemptDuration }}</dd></div>
+        <div><dt>Intentos disponibles</dt><dd>{{ remaining() }} de {{ maxAttempts() }}</dd></div>
       </dl>
 
       @if (a.passed) {
-        <p class="alert alert-success">¡Felicitaciones! Aprobaste el examen. Tu certificado ya está disponible.</p>
-      } @else if (remaining() > 0) {
-        <p class="alert alert-warning">
-          No alcanzaste la nota mínima. Puedes volver a intentarlo: te
-          {{ remaining() === 1 ? 'queda 1 intento' : 'quedan ' + remaining() + ' intentos' }}.
+        <p class="alert alert-success">
+          ¡Felicitaciones! Aprobaste el examen.
+          {{ certificate() ? 'Tu certificado ya está disponible.' : 'Tu certificado está pendiente de habilitación.' }}
         </p>
+      } @else if (newExamAvailable()) {
+        <p class="alert alert-warning">
+          No alcanzaste la nota mínima en este examen. El curso tiene ahora una nueva evaluación disponible.
+        </p>
+      } @else if (remaining() > 0) {
+        <p class="alert alert-warning">No alcanzaste la nota mínima. {{ availability()?.reason }}</p>
       } @else {
         <p class="alert alert-danger">
           No alcanzaste la nota mínima y ya no tienes intentos disponibles. Comunícate con la empresa.
         </p>
       }
 
-      <div class="row">
-        @if (a.passed) {
-          <a class="btn btn-primary" routerLink="/certificados">Ver mi certificado</a>
-        } @else if (remaining() > 0) {
-          <a class="btn btn-primary" routerLink="/examen/instrucciones">Volver a intentarlo</a>
+      <div class="row actions">
+        @if (certificate(); as cert) {
+          <a class="btn btn-primary" [routerLink]="['/certificados', cert.id]"><app-icon name="award" size="sm" /> Ver mi certificado</a>
+        } @else if (a.passed) {
+          <a class="btn btn-primary" routerLink="/certificados">Ver estado del certificado</a>
+        } @else if (newExamAvailable()) {
+          <a class="btn btn-primary" [routerLink]="['/cursos', courseId(), 'examen']">Ir a la nueva evaluación</a>
         }
-        <a class="btn btn-secondary" routerLink="/curso">Volver al aula</a>
-        <a class="btn btn-ghost" routerLink="/panel">Ir a mi panel</a>
+        <a class="btn btn-secondary" [routerLink]="['/cursos', courseId()]">Volver al aula</a>
+        <a class="btn btn-ghost" routerLink="/panel">Ir a mis cursos</a>
       </div>
     </section>
+    }
   }
 </div>

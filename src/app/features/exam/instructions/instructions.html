@@ -1,51 +1,84 @@
 <div class="stack">
-  <header>
+  <a class="back-link" [routerLink]="['/cursos', courseId()]"><app-icon name="arrow-left" size="sm" /> Volver al aula</a>
+  <header class="page-head">
     <h1>Instrucciones del examen</h1>
     @if (course()) {
       <p class="muted">{{ course()!.name }}</p>
     }
   </header>
 
+  @if (!loading() && !error() && recoveryInfo(); as info) {
+    <!-- R6: el examen que corresponde es una recuperación; la ventana limita solo el inicio (hora de Lima). -->
+    <section class="alert alert-info stack recovery" aria-labelledby="recovery-title" data-recovery>
+      <h2 id="recovery-title">Examen de recuperación</h2>
+      <p data-window>
+        Puedes iniciarla desde el <strong>{{ info.recovery.opensAt | date: 'dd/MM/yyyy HH:mm' : '-0500' }}</strong> hasta el
+        <strong>{{ info.recovery.closesAt | date: 'dd/MM/yyyy HH:mm' : '-0500' }}</strong> (hora de Lima).
+        @if (exam(); as cfg) { Una vez iniciada, tienes los {{ cfg.timeMinutes }} minutos completos, aunque la ventana cierre antes. }
+      </p>
+      @if (info.status === 'autorizada' && recoveryStarted()) {
+        <p class="small">Ya iniciaste tu recuperación: continúa con el mismo tiempo y tus respuestas guardadas.</p>
+      } @else if (info.status === 'no_rindio') {
+        <p class="small">No iniciaste la recuperación dentro del plazo. Ya no es posible rendirla.</p>
+      }
+    </section>
+  }
+
   @if (loading()) {
     <p class="card muted" role="status">Cargando…</p>
   } @else if (error()) {
     <p class="alert alert-danger" role="alert">{{ error() }}</p>
-  } @else if (config(); as cfg) {
-    <section class="card stack">
-      <dl class="data">
-        <div><dt>Número de preguntas</dt><dd>{{ questionCount() }}</dd></div>
-        <div><dt>Tiempo disponible</dt><dd>{{ cfg.timeMinutes }} minutos</dd></div>
-        <div><dt>Nota mínima aprobatoria</dt><dd>{{ cfg.passScore }} / {{ cfg.scaleMax }}</dd></div>
-        <div><dt>Intentos disponibles</dt><dd>{{ remaining() }} de {{ cfg.maxAttempts }}</dd></div>
-      </dl>
-
-      <div>
-        <h2>Antes de comenzar</h2>
-        <ul class="rules">
-          <li>Lee cada pregunta con atención. Hay preguntas de selección única, selección múltiple y verdadero o falso.</li>
-          <li>El tiempo empieza a correr cuando presionas “Comenzar examen” y se muestra durante toda la evaluación.</li>
-          <li>Puedes cambiar tus respuestas y moverte entre preguntas antes de enviar.</li>
-          <li>Si el tiempo se agota, se enviarán automáticamente las respuestas guardadas.</li>
-          <li>Solo puedes tener un intento activo a la vez.</li>
-          <li>Si apruebas, se habilitará tu certificado digital.</li>
-        </ul>
+  } @else if (blockReason()) {
+    <!-- Examen bloqueado: primero el estado y el motivo; no se muestran instrucciones para comenzar. -->
+    <section class="card stack blocked" aria-labelledby="blocked-title">
+      <div class="blocked__head">
+        <span class="blocked__icon" aria-hidden="true"><app-icon name="lock" /></span>
+        <h2 id="blocked-title">{{ recoveryInfo() ? 'La recuperación no está disponible' : 'El examen no está disponible' }}</h2>
       </div>
-
-      @if (blockReason()) {
-        <p class="alert alert-warning" role="status">{{ blockReason() }}</p>
+      <p class="alert alert-warning" role="status">{{ blockReason() }}</p>
+      @if (exam(); as cfg) {
+        <dl class="data facts">
+          <div><dt><app-icon name="list" size="sm" />Número de preguntas</dt><dd>{{ questionCount() }}</dd></div>
+          <div><dt><app-icon name="clock" size="sm" />Tiempo disponible</dt><dd>{{ cfg.timeMinutes }} minutos</dd></div>
+          <div><dt><app-icon name="target" size="sm" />Nota mínima aprobatoria</dt><dd>{{ cfg.passScore }} / {{ cfg.scaleMax }}</dd></div>
+          <div><dt><app-icon name="flag" size="sm" />Intentos disponibles</dt><dd>{{ availability()?.remainingAttempts ?? 0 }} de {{ maxAttempts }}</dd></div>
+        </dl>
       }
+      <p class="small muted">Cada alumno tiene un solo intento por examen.</p>
+    </section>
+  } @else if (exam(); as cfg) {
+    <dl class="data facts" aria-label="Datos del examen">
+      <div class="card"><dt><app-icon name="list" size="sm" />Número de preguntas</dt><dd>{{ questionCount() }}</dd></div>
+      <div class="card"><dt><app-icon name="clock" size="sm" />Tiempo disponible</dt><dd>{{ cfg.timeMinutes }} minutos</dd></div>
+      <div class="card"><dt><app-icon name="target" size="sm" />Nota mínima aprobatoria</dt><dd>{{ cfg.passScore }} / {{ cfg.scaleMax }}</dd></div>
+      <div class="card"><dt><app-icon name="flag" size="sm" />Intentos disponibles</dt><dd>{{ availability()?.remainingAttempts ?? 0 }} de {{ maxAttempts }}</dd></div>
+    </dl>
 
-      <div class="row">
-        <button type="button" class="btn btn-primary" [disabled]="!!blockReason()" (click)="start()">
-          {{ hasActive() ? 'Continuar examen' : 'Comenzar examen' }}
+    <section class="card stack" aria-labelledby="rules-title">
+      <h2 id="rules-title">Antes de comenzar</h2>
+      <ul class="rules">
+        <li><app-icon name="check" size="sm" />Lee cada pregunta con atención. Hay preguntas de selección única, selección múltiple y verdadero o falso.</li>
+        <li><app-icon name="check" size="sm" />El tiempo empieza a correr cuando presionas “Comenzar examen” y se muestra durante toda la evaluación.</li>
+        <li><app-icon name="check" size="sm" />Puedes cambiar tus respuestas y moverte entre preguntas antes de enviar.</li>
+        <li><app-icon name="check" size="sm" />Si el tiempo se agota, se enviarán automáticamente las respuestas guardadas.</li>
+        <li class="rules__key">
+          <app-icon name="check" size="sm" />Tienes un solo intento para este examen: una vez enviado, apruebes o no, no podrás volver a rendirlo.
+        </li>
+        <li><app-icon name="check" size="sm" />Solo puedes tener un examen en curso a la vez, aunque sea de otro curso.</li>
+        <li><app-icon name="check" size="sm" />Si apruebas, se habilitará tu certificado digital.</li>
+      </ul>
+
+      @if (startError()) { <p class="alert alert-danger" role="alert">{{ startError() }}</p> }
+      <div class="row start">
+        <button type="button" class="btn btn-primary" [class.is-loading]="starting()" [disabled]="starting()" (click)="start()">
+          <app-icon name="play" size="sm" /> {{ startLabel() }}
         </button>
-        <a class="btn btn-ghost" routerLink="/curso">Volver al aula</a>
       </div>
     </section>
 
-    <p class="alert alert-info small">
-      Valores de demostración (tiempo, nota mínima, intentos y preguntas), pendientes de confirmar con la
-      empresa. En la versión real, el servidor controla el tiempo, guarda las respuestas y califica.
+    <p class="alert alert-info small demo-only">
+      Valores de demostración (tiempo, nota mínima y preguntas), pendientes de confirmar con la empresa. En la
+      versión real, el servidor controla el tiempo, guarda las respuestas y califica.
     </p>
   }
 </div>

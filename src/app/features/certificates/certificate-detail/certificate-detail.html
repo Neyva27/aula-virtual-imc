@@ -1,12 +1,13 @@
 <div class="stack">
-  <a routerLink="/certificados" class="small">← Volver a Mis certificados</a>
+  <a routerLink="/certificados" class="back-link"><app-icon name="arrow-left" size="sm" /> Volver a Mis certificados</a>
 
   @if (loading()) {
     <p class="card muted" role="status">Cargando certificado…</p>
   } @else if (!cert()) {
-    <article class="card stack">
+    <article class="card empty">
+      <app-icon name="award" size="lg" />
       <h1>Certificado no disponible</h1>
-      <p>No encontramos este certificado en tu cuenta.</p>
+      <p class="muted">No encontramos este certificado en tu cuenta.</p>
       <a class="btn btn-primary" routerLink="/certificados">Ir a Mis certificados</a>
     </article>
   } @else {
@@ -20,9 +21,9 @@
           [disabled]="downloading()"
           (click)="download()"
         >
-          Descargar PDF
+          <app-icon name="download" size="sm" /> Descargar PDF
         </button>
-        <a class="btn btn-secondary" [routerLink]="['/verificar', cert()!.code]">Verificar autenticidad</a>
+        <a class="btn btn-secondary" [routerLink]="['/verificar', cert()!.code]"><app-icon name="shield" size="sm" /> Verificar autenticidad</a>
       </div>
     </header>
 
@@ -33,6 +34,14 @@
     <div class="preview">
       <app-certificate-view [cert]="cert()!" [qr]="qr()" />
     </div>
+
+    @if (qr()) {
+      <section class="card qr-mobile" aria-label="Código QR del certificado">
+        <img [src]="qr()" alt="Código QR de prueba del certificado (ampliado)" />
+        <p><strong>Código: {{ cert()!.code }}</strong></p>
+        <p class="small muted">El mismo QR del certificado, ampliado para escanearlo desde el móvil.</p>
+      </section>
+    }
 
     <p class="alert alert-info small">
       Vista previa con plantilla provisional. El QR es de prueba y apunta a la página de verificación de

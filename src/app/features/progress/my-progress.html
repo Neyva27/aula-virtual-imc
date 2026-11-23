@@ -1,0 +1,120 @@
+<div class="stack">
+  <header class="page-head">
+    <h1>Mi progreso</h1>
+    <p class="muted">Tu avance en los cursos que tienes asignados y el estado de cada evaluación.</p>
+  </header>
+
+  @if (loading()) {
+    <p class="card muted" role="status">Cargando tu progreso…</p>
+  } @else if (error()) {
+    <p class="alert alert-danger" role="alert">{{ error() }}</p>
+  } @else if (courses().length === 0) {
+    <section class="card empty">
+      <app-icon name="chart" size="lg" />
+      <h2>Sin cursos asignados</h2>
+      <p class="muted">Aún no tienes cursos asignados, por lo que no hay progreso que mostrar. Comunícate con la empresa.</p>
+    </section>
+  } @else {
+    <dl class="summary" aria-label="Resumen de tu progreso">
+      <div class="card"><dt><app-icon name="book" />Cursos asignados</dt><dd>{{ courses().length }}</dd></div>
+      <div class="card"><dt><app-icon name="check-circle" />Cursos con todos los videos vistos</dt><dd>{{ completedCourses() }}</dd></div>
+      <div class="card"><dt><app-icon name="award" />Evaluaciones aprobadas</dt><dd>{{ approvedExams() }}</dd></div>
+      <div class="card" data-summary="certificates"><dt><app-icon name="shield" />Certificados obtenidos</dt><dd>{{ earnedCertificates() }}</dd></div>
+    </dl>
+
+    @if (noProgress()) {
+      <p class="alert alert-info" role="status">
+        Todavía no registras avance. Empieza por ver los videos de tus cursos.
+      </p>
+    }
+
+    <ul class="progress-list" role="list">
+      @for (c of courses(); track c.item.course.id) {
+        <li class="card stack course" [attr.data-course]="c.item.course.id">
+          <div class="course__head">
+            <h2>{{ c.item.course.name }}</h2>
+            <div class="row tags">
+              <app-status-badge [status]="c.item.enrollment.status" [student]="true" />
+              @if (c.item.preview) {
+                <span class="badge badge--warning">Borrador · demo</span>
+              }
+            </div>
+          </div>
+
+          <section class="block" [attr.aria-label]="'Avance en ' + c.item.course.name">
+            <h3>Avance</h3>
+            <div class="row between">
+              <span>
+                @if (c.item.totalVideos === 0) {
+                  Este curso aún no tiene videos publicados.
+                } @else {
+                  {{ c.item.completedVideos }} de {{ c.item.totalVideos }}
+                  {{ c.item.totalVideos === 1 ? 'video completado' : 'videos completados' }}
+                }
+              </span>
+              <strong class="pct">{{ c.item.percent }}%</strong>
+            </div>
+            <app-progress-bar [value]="c.item.percent" [label]="'Progreso de ' + c.item.course.name" />
+          </section>
+
+          <section class="block" [attr.aria-label]="'Evaluación de ' + c.item.course.name">
+            <div class="row between">
+              <h3>Evaluación</h3>
+              <span class="badge exam-state" [class]="'badge--' + tones[c.state]">{{ labels[c.state] }}</span>
+            </div>
+            @if (c.state === 'pendiente') {
+              <p class="small muted reason">{{ c.reason }}</p>
+            } @else if (c.state === 'disponible') {
+              <p class="small muted">Ya puedes rendir la evaluación. Tienes un solo intento.</p>
+            } @else if (c.state === 'en_curso') {
+              <p class="small muted">Tienes la evaluación abierta en este navegador.</p>
+            } @else if (c.state === 'en_revision') {
+              <p class="small muted">
+                Tu evaluación tiene preguntas de respuesta abierta: el resultado se mostrará cuando el instructor termine de calificarla.
+              </p>
+            }
+
+            <!--
+              R4/R6 (decisión del 10/11/2026): el estudiante ve una sola nota final vigente por curso: la del intento que
+              vale (la recuperación si existe, aunque sea menor; si no, el regular). El historial completo se conserva y
+              lo ve el Instructor.
+            -->
+            @if (c.result.current; as a) {
+              <dl class="attempt" [attr.data-attempt]="a.id">
+                <div><dt>Fecha</dt><dd>{{ a.date | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
+                <div><dt>Nota final</dt><dd>{{ pending(a) ? 'Pendiente de calificación' : a.score + ' / ' + a.scaleMax }}</dd></div>
+                <div><dt>Duración</dt><dd>{{ a.durationSec | attemptDuration }}</dd></div>
+                <div><dt>Resultado</dt><dd>{{ pending(a) ? 'Pendiente de calificación' : a.passed ? 'Aprobado' : 'Desaprobado' }}</dd></div>
+              </dl>
+            }
+
+            @if (c.certificate; as cert) {
+              <p class="small">
+                Certificado emitido: <a [routerLink]="['/certificados', cert.id]">ver certificado {{ cert.code }}</a>
+              </p>
+            } @else if (c.state === 'aprobada') {
+              <p class="small muted">Certificado pendiente de emisión.</p>
+            }
+          </section>
+
+          <div class="row actions">
+            <a class="btn btn-primary" [routerLink]="['/cursos', c.item.course.id]">{{ cta(c.item) }}</a>
+            @if (c.state === 'disponible' || c.state === 'en_curso') {
+              <a class="btn btn-secondary" [routerLink]="['/cursos', c.item.course.id, 'examen']">
+                {{ c.state === 'en_curso' ? 'Continuar evaluación' : 'Ir a la evaluación' }}
+              </a>
+            }
+            @if (c.attempts.length) {
+              <a class="btn btn-ghost" [routerLink]="['/cursos', c.item.course.id, 'examen', 'resultado']">Ver resultado</a>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+
+    <p class="alert alert-info small demo-only">
+      Datos de demostración: el avance y los intentos se registran en este navegador. En la versión real los
+      registrará el servidor.
+    </p>
+  }
+</div>

@@ -1,11 +1,13 @@
-import { User } from '../models/user.model';
 import { Course, Enrollment } from '../models/course.model';
-import { Attempt, Question } from '../models/exam.model';
-import { Certificate } from '../models/certificate.model';
+import { Question } from '../models/exam.model';
 import { DEMO_CONFIG } from '../config/demo.config';
+import { Company } from '../models/user.model';
+import { AttemptV2, CertificateV2, DemoState, DemoStateV2, RecoveryCollections, UserV3 } from './demo-state';
 
-// Todos los datos son DE PRUEBA. Correos con dominio reservado .test y DNI ficticios.
-export const SEED_USERS: User[] = [
+// Todos los datos son DE PRUEBA (nunca datos personales reales). Correos con dominio reservado .test y DNI ficticios.
+// Se conservan con la forma de v2/v3 (rol «admin», nombre en un campo): la semilla vigente (v4) se obtiene con las
+// mismas migraciones que los datos guardados (v2 → v3 → v4), que convierten a1 en «Instructor de Prueba».
+export const SEED_USERS: UserV3[] = [
   { id: 'u1', fullName: 'Ana Torres Quispe', email: 'ana@ejemplo.test', dni: '00000001', role: 'participant' },
   { id: 'u2', fullName: 'Luis Mendoza Rojas', email: 'luis@ejemplo.test', dni: '00000002', role: 'participant' },
   { id: 'u3', fullName: 'Carla Vega Soto', email: 'carla@ejemplo.test', dni: '00000003', role: 'participant' },
@@ -18,12 +20,16 @@ export const SEED_USERS: User[] = [
 export const DEMO_ACCOUNTS = [
   { label: 'Participante · aprobada, con certificado', email: 'ana@ejemplo.test' },
   { label: 'Participante · en progreso (3 de 6 videos)', email: 'luis@ejemplo.test' },
-  { label: 'Participante · desaprobada, con un intento restante', email: 'carla@ejemplo.test' },
+  { label: 'Participante · desaprobada, sin intentos restantes', email: 'carla@ejemplo.test' },
   { label: 'Participante · recién asignado', email: 'pedro@ejemplo.test' },
   { label: 'Participante · lista para rendir examen', email: 'rosa@ejemplo.test' },
   { label: 'Participante · aprobado, certificado pendiente de emisión', email: 'jorge@ejemplo.test' },
-  { label: 'Administrador', email: 'admin@ejemplo.test' },
+  { label: 'Instructor', email: 'admin@ejemplo.test' }, // correo conservado por compatibilidad (decisión del 08/11/2026)
 ];
+
+// ================= Curso c1 (estado v2) =================
+// Se conserva con la forma del estado v2: la semilla v3 se genera migrándolo (migrateV2),
+// el mismo camino que siguen los datos guardados por una versión anterior.
 
 export const SEED_COURSE: Course = {
   id: 'c1',
@@ -55,14 +61,14 @@ export const SEED_ENROLLMENTS: Enrollment[] = [
 
 export const SEED_EXAM = { ...DEMO_CONFIG.exam };
 
-export const SEED_ATTEMPTS: Attempt[] = [
+export const SEED_ATTEMPTS: AttemptV2[] = [
   { id: 'att1', userId: 'u1', date: '2026-10-12T15:40:00-05:00', durationSec: 1080, score: 80, correctCount: 8, totalQuestions: 10, passed: true },
   { id: 'att2', userId: 'u3', date: '2026-10-10T10:15:00-05:00', durationSec: 1200, score: 50, correctCount: 5, totalQuestions: 10, passed: false },
   { id: 'att3', userId: 'u6', date: '2026-10-17T09:30:00-05:00', durationSec: 900, score: 90, correctCount: 9, totalQuestions: 10, passed: true },
 ];
 
 // Un solo certificado por aprobación (att1 de Ana).
-export const SEED_CERTIFICATES: Certificate[] = [
+export const SEED_CERTIFICATES: CertificateV2[] = [
   {
     id: 'cert1',
     code: 'IMC-DEMO-0001',
@@ -105,4 +111,132 @@ export const SEED_QUESTIONS: Question[] = [
     options: [{ id: 'a', text: 'Lunes' }, { id: 'b', text: 'Sábado' }, { id: 'c', text: 'Miércoles' }, { id: 'd', text: 'Domingo' }] },
   { id: 'q9', type: 'truefalse', text: 'El agua hierve a 100 °C a nivel del mar.', points: 10, correct: ['v'], options: TF },
   { id: 'q10', type: 'truefalse', text: 'El Sol es un planeta.', points: 10, correct: ['f'], options: TF },
+];
+
+export const SEED_V2: DemoStateV2 = {
+  users: SEED_USERS,
+  course: SEED_COURSE,
+  exam: SEED_EXAM,
+  questions: SEED_QUESTIONS,
+  enrollments: SEED_ENROLLMENTS,
+  attempts: SEED_ATTEMPTS,
+  certificates: SEED_CERTIFICATES,
+};
+
+// ================= Cursos de demostración (v3) =================
+// NO son cursos oficiales de IMC (PENDIENTES M1). Cada uno tiene un único video real de YouTube,
+// solución provisional (M4), por lo que no cumplen RN-03 y quedan en borrador (M3).
+// No tienen preguntas: no se inventa contenido de evaluación (D16).
+
+/** Portadas SVG propias y abstractas, sin texto ni logotipos: no son imágenes oficiales de IMC. */
+export const SEED_COVERS: Record<string, string> = {
+  c1: 'demo/covers/curso-demostracion.svg',
+  'c-ia': 'demo/covers/inteligencia-artificial.svg',
+  'c-mkt': 'demo/covers/marketing-digital.svg',
+};
+
+export const SEED_DEMO_COURSES: Pick<DemoState, 'courses' | 'modules' | 'videos' | 'exams'> = {
+  courses: [
+    {
+      id: 'c-ia',
+      name: 'Introducción a la Inteligencia Artificial',
+      description:
+        'Curso de demostración con un video de referencia de un canal externo. El contenido, las horas y la evaluación oficiales los definirá la empresa.',
+      status: 'borrador',
+      trainingHours: null,
+      coverImage: SEED_COVERS['c-ia'],
+      isDemo: true,
+    },
+    {
+      id: 'c-mkt',
+      name: 'Fundamentos del Marketing Digital',
+      description:
+        'Curso de demostración con un video de referencia de un canal externo. El contenido, las horas y la evaluación oficiales los definirá la empresa.',
+      status: 'borrador',
+      trainingHours: null,
+      coverImage: SEED_COVERS['c-mkt'],
+      isDemo: true,
+    },
+  ],
+  modules: [
+    { id: 'c-ia-m1', courseId: 'c-ia', order: 1, title: 'Contenido del curso' },
+    { id: 'c-mkt-m1', courseId: 'c-mkt', order: 1, title: 'Contenido del curso' },
+  ],
+  videos: [
+    {
+      id: 'c-ia-v1',
+      courseId: 'c-ia',
+      moduleId: 'c-ia-m1',
+      order: 1,
+      title: '¿Qué es y cómo funciona la Inteligencia Artificial?',
+      durationSec: 513, // 8:33, verificado en YouTube el 26/10/2026
+      published: true,
+      source: { kind: 'youtube', videoId: '_tA5cinv0U8' },
+      sourceCredit: 'Canal «Derivando» en YouTube',
+    },
+    {
+      id: 'c-mkt-v1',
+      courseId: 'c-mkt',
+      moduleId: 'c-mkt-m1',
+      order: 1,
+      title: 'Aprende Marketing paso a paso (método fácil)',
+      // 10:03, verificado en YouTube el 26/10/2026. EXCEDE por 3 s el máximo de RN-03 (PENDIENTES V2):
+      // se conserva la duración real y la excepción no está aprobada.
+      durationSec: 603,
+      published: true,
+      source: { kind: 'youtube', videoId: 'Ctd6BTuZmjA' },
+      sourceCredit: 'Canal «Emprende Aprendiendo» en YouTube',
+    },
+  ],
+  exams: [
+    { id: 'c-ia-e1', courseId: 'c-ia', title: 'Examen del curso', active: true, ...DEMO_CONFIG.exam },
+    { id: 'c-mkt-e1', courseId: 'c-mkt', title: 'Examen del curso', active: true, ...DEMO_CONFIG.exam },
+  ],
+};
+
+// ================= Etapa 2B, Bloque 2 (R1): empresas, recuperaciones e inicios =================
+// Empresas FICTICIAS (no son clientes reales de IMC), para el filtro por empresa de «Evaluaciones rendidas».
+
+export const SEED_COMPANIES: Company[] = [
+  { id: 'emp-a', name: 'Empresa de Demostración A' },
+  { id: 'emp-b', name: 'Empresa de Demostración B' },
+];
+
+/** Empresa de cada estudiante de la semilla. El Instructor (a1) no pertenece a una empresa. */
+export const SEED_USER_COMPANIES: Record<string, string> = {
+  u1: 'emp-a',
+  u2: 'emp-a',
+  u3: 'emp-a',
+  u4: 'emp-b',
+  u5: 'emp-b',
+  u6: 'emp-b',
+};
+
+/** Colecciones del Bloque 2 en la semilla: las empresas ficticias y, todavía, ninguna recuperación ni inicio. */
+export const SEED_RECOVERY_COLLECTIONS: RecoveryCollections = {
+  companies: SEED_COMPANIES,
+  recoveries: [],
+  examStarts: [],
+  liveSessions: [],
+};
+
+/**
+ * Solo para la semilla (datos de prueba nuevos): agrega las colecciones del Bloque 2 y asigna su empresa a cada
+ * estudiante de prueba. No se aplica a datos guardados: allí la normalización solo agrega listas vacías.
+ * No modifica el estado recibido.
+ */
+export function withSeedRecoveryCollections(state: DemoState): DemoState {
+  const seed = structuredClone(SEED_RECOVERY_COLLECTIONS);
+  const users = state.users.map((u) =>
+    SEED_USER_COMPANIES[u.id] && u.role === 'participant' && !u.companyId ? { ...u, companyId: SEED_USER_COMPANIES[u.id] } : u,
+  );
+  return { ...state, users, ...seed };
+}
+
+export const SEED_DEMO_ENROLLMENTS: Enrollment[] = [
+  { userId: 'u1', courseId: 'c-ia', completedVideoIds: [], status: 'pendiente' },
+  // Vio el único video, pero el curso está en borrador: no pasa a «listo para examen».
+  { userId: 'u2', courseId: 'c-mkt', completedVideoIds: ['c-mkt-v1'], startDate: '2026-10-20', status: 'en_progreso' },
+  { userId: 'u4', courseId: 'c-ia', completedVideoIds: [], status: 'pendiente' },
+  { userId: 'u4', courseId: 'c-mkt', completedVideoIds: [], status: 'pendiente' },
 ];

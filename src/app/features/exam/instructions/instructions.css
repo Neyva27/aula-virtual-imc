@@ -1,4 +1,27 @@
-.data { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem 1.25rem; margin: 0; }
-.data dt { font-size: 0.8rem; color: var(--c-muted); }
-.data dd { margin: 0; font-weight: 700; font-size: 1.1rem; }
-.rules { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.4rem; }
+/* Datos del examen como indicadores (dl.data es global). */
+.facts { grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: var(--space-4); }
+/* .data trae margin: 0; dentro de .stack se recupera la separación entre bloques. */
+.stack > * + .facts { margin-top: var(--space); }
+.facts > .card { padding: var(--space-4); }
+.facts dt { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
+.facts dt app-icon { color: var(--c-accent-700); }
+.facts dd { margin-top: var(--space-1); font-weight: var(--weight-bold); font-size: var(--text-lg); color: var(--c-primary); }
+
+.rules { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.rules li { display: flex; gap: var(--space-3); align-items: flex-start; }
+.rules app-icon { margin-top: 3px; color: var(--c-success); }
+.rules__key { font-weight: var(--weight-semibold); color: var(--c-primary); }
+.start { margin-top: var(--space-2); }
+
+.blocked__head { display: flex; align-items: center; gap: var(--space-3); }
+.blocked__head h2 { margin: 0; }
+.blocked__icon {
+  display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: var(--radius-pill);
+  background: var(--c-warning-100); color: var(--c-warning);
+}
+
+@media (max-width: 600px) { .start .btn { flex: 1 1 auto; } }
+
+/* R6: aviso de examen de recuperación y su ventana. */
+.recovery h2 { margin: 0; font-size: var(--text-lg); }
+.recovery p { margin: 0; }

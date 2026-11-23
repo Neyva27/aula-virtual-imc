@@ -1,0 +1,26 @@
+# Dependencias y compilación
+/node_modules
+/dist
+/coverage
+*.tsbuildinfo
+
+# Cliente de Prisma generado (se regenera con `npm run prisma:generate`)
+/src/generated
+
+# Variables de entorno: NUNCA se versionan (solo .env.example)
+.env
+.env.*
+!.env.example
+
+# Registros y sistema
+*.log
+.DS_Store
+Thumbs.db
+
+/src/generated/prisma
+
+# Scripts SQL locales con contraseñas
+*.local.sql
+
+# Archivos subidos (portadas de curso): se respaldan aparte, nunca se versionan
+/storage

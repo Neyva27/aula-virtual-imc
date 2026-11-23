@@ -1,24 +1,41 @@
-<a class="skip" href="#contenido">Saltar al contenido</a>
+<a class="skip" href="#contenido" (click)="skip($event)">Saltar al contenido</a>
 
-<div class="demo-bar">Versión de demostración · los datos mostrados son de prueba</div>
+@if (!apiMode) {
+  <div class="demo-bar">Versión de demostración · los datos mostrados son de prueba</div>
+}
 
-<header class="top">
+<header class="top" [class.is-focus]="focusMode()">
   <div class="container top__inner">
-    <a routerLink="/panel" class="top__logo" aria-label="Ir a mi panel">
-      <app-logo-placeholder />
-    </a>
-    <nav class="top__nav" aria-label="Navegación principal">
-      @for (link of links; track link.path) {
-        <a [routerLink]="link.path" routerLinkActive="is-active">{{ link.label }}</a>
+    @if (focusMode()) {
+      <!-- Modo enfoque: sin enlaces que saquen del examen. -->
+      <span class="top__logo"><app-logo-placeholder /></span>
+      <span class="top__focus"><app-icon name="clock" size="sm" /> Examen en curso</span>
+    } @else {
+      <a routerLink="/panel" class="top__logo" aria-label="Ir a mis cursos">
+        <app-logo-placeholder />
+      </a>
+      <!-- En móvil este mismo menú se muestra como barra inferior de pestañas. -->
+      @if (links.length) {
+        <nav class="top__nav" aria-label="Navegación principal">
+          @for (link of links; track link.path) {
+            <a [routerLink]="link.path" [class.is-active]="isActive(link)" [attr.aria-current]="isActive(link) ? 'page' : null"
+              ><app-icon [name]="link.icon" /><span>{{ link.label }}</span></a
+            >
+          }
+        </nav>
       }
-    </nav>
-    <div class="top__user">
-      <span class="top__name">{{ user()?.fullName }}</span>
-      <button type="button" class="btn btn-ghost" (click)="logout()">Salir</button>
-    </div>
+      <div class="top__user">
+        <span class="top__avatar" aria-hidden="true">{{ initials() }}</span>
+        <span class="top__name">{{ user()?.fullName }}</span>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="logout()"><app-icon name="log-out" size="sm" /> Salir</button>
+      </div>
+    }
   </div>
 </header>
 
-<main id="contenido" class="container main">
+<main id="contenido" class="container main" tabindex="-1" [class.is-focus]="focusMode()">
   <router-outlet />
 </main>
+
+<!-- Soporte (23/11/2026): no se muestra durante el examen, para no sacar al estudiante de la evaluación. -->
+@if (!focusMode()) { <app-support-button /> }

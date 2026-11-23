@@ -5,12 +5,14 @@ import { ActivatedRoute } from '@angular/router';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DataRepository } from '../../../core/services/data-repository';
 import { Certificate } from '../../../core/models/certificate.model';
+import { TrainingHoursPipe } from '../../../shared/pipes/training-hours.pipe';
+import { Icon } from '../../../shared/components/icon';
 
 type Mode = 'code' | 'dni';
 
 @Component({
   selector: 'app-verify',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, DatePipe, TrainingHoursPipe, Icon],
   templateUrl: './verify.html',
   styleUrl: './verify.css',
 })
@@ -19,7 +21,13 @@ export class Verify {
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(NonNullableFormBuilder);
 
-  readonly mode = signal<Mode>('code');
+  /**
+   * Validación pública por DNI (20/11/2026, ruta /validar-certificado): solo DNI, textos para empresas y terceros, y
+   * por cada certificado solo titular, curso, código, emisión, estado y resultado. /verificar no cambia.
+   */
+  readonly publicDni = this.route.snapshot.data['publicDni'] === true;
+
+  readonly mode = signal<Mode>(this.publicDni ? 'dni' : 'code');
   readonly query = this.fb.control('', Validators.required);
 
   readonly searching = signal(false);
@@ -31,7 +39,7 @@ export class Verify {
   constructor() {
     this.route.paramMap.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe((params) => {
       const code = params.get('codigo');
-      if (code) {
+      if (code && !this.publicDni) {
         this.mode.set('code');
         this.query.setValue(code);
         this.search();
@@ -40,6 +48,7 @@ export class Verify {
   }
 
   setMode(mode: Mode): void {
+    if (this.publicDni) return; // la validación pública es solo por DNI
     this.mode.set(mode);
     this.query.reset('');
     this.searched.set(false);
@@ -54,7 +63,7 @@ export class Verify {
       return;
     }
     if (this.mode() === 'dni' && !/^\d{8}$/.test(q)) {
-      this.inputError.set('El DNI debe tener 8 dígitos numéricos.');
+      this.inputError.set(this.publicDni ? 'Ingresa un DNI peruano válido: 8 dígitos numéricos.' : 'El DNI debe tener 8 dígitos numéricos.');
       return;
     }
 

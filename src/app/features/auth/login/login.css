@@ -1,8 +1,54 @@
-.pw { display: flex; gap: 0.5rem; }
-.pw__toggle { flex-shrink: 0; }
-.full { width: 100%; }
-.demo__list { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: 0.5rem; }
-.demo__list li {
-  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
-  padding: 0.5rem 0.75rem; border: 1px solid var(--c-border); border-radius: var(--radius-sm);
+.login { padding: var(--space-8); }
+.login__head { margin-bottom: var(--space-5); }
+.login__head h1 { margin-bottom: var(--space-1); }
+.login__head p { margin: 0; }
+.login__error { display: flex; align-items: flex-start; gap: var(--space-2); margin-bottom: var(--space-4); }
+.login__error app-icon { margin-top: 2px; }
+
+/* «Mostrar» dentro del campo: la contraseña conserva todo el ancho, también a 320 px. */
+.pw { position: relative; }
+.pw .input { padding-right: 116px; }
+.pw__toggle {
+  position: absolute; top: 4px; right: 4px; bottom: 4px; min-height: 0; width: 104px;
+  padding: 0 var(--space-2); font-size: var(--text-sm); border-color: transparent; background: var(--c-primary-50);
 }
+.pw__toggle:hover { background: var(--c-primary-100); }
+.full { width: 100%; min-height: 48px; margin-top: var(--space-2); }
+
+.demo h2 { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); font-size: var(--text-lg); }
+.demo > p { margin-bottom: var(--space-4); }
+.demo__pw {
+  display: inline-block; padding: 0 var(--space-2); border-radius: var(--radius-sm);
+  background: var(--c-primary-100); color: var(--c-primary); font-family: var(--font-mono);
+}
+.demo__list { list-style: none; margin: 0 0 var(--space-4); padding: 0; display: grid; gap: var(--space-2); }
+.demo__list li {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--c-border); border-radius: var(--radius-sm);
+}
+.demo__list li:hover { border-color: var(--c-primary-200); background: var(--c-primary-50); }
+.demo__who { display: grid; gap: 2px; min-width: 0; }
+.demo__role { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+/* Confirmación del restablecimiento (V5). */
+.reset-confirm { display: grid; gap: var(--space-2); margin-top: var(--space-3); }
+.reset-confirm p { margin: 0; }
+.reset-confirm #reset-title { display: flex; align-items: center; gap: var(--space-2); }
+.demo__who span { overflow-wrap: anywhere; }
+/* Pie: verificación pública y, separada, la acción que restablece los datos de esta demostración. */
+.demo__foot { justify-content: space-between; padding-top: var(--space-4); border-top: 1px solid var(--c-divider); }
+.demo__verify { display: inline-flex; align-items: center; gap: var(--space-1); font-weight: var(--weight-semibold); }
+.demo__reset { color: var(--c-danger); }
+.demo__reset:hover { background: var(--c-danger-100); }
+
+@media (max-width: 600px) {
+  .login { padding: var(--space-5); }
+  .demo__foot { flex-direction: column; align-items: flex-start; }
+}
+/* B1.3: indicador del modo API y aclaración del restablecimiento (solo en modo API). */
+.demo__mode { margin: 0 0 var(--space-2); }
+.demo__reset-note { margin: 0 0 var(--space-3); }
+
+/* Validación pública de certificados (20/11/2026). */
+.verify-cta { display: grid; gap: 0.5rem; }
+.verify-cta h2 { margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 0.4rem; }
+.verify-cta p { margin: 0; }

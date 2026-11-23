@@ -1,10 +1,15 @@
 <div class="stack">
-  <section class="card">
-    <h1>Iniciar sesión</h1>
-    <p class="muted">Ingresa con el usuario que te entregó la empresa.</p>
+  <section class="card login">
+    <header class="login__head">
+      <h1>Iniciar sesión</h1>
+      <p class="muted">Ingresa con el usuario que te entregó la empresa.</p>
+    </header>
 
+    @if (notice()) {
+      <p class="alert alert-info login__error" role="status"><app-icon name="alert" size="sm" /><span>{{ notice() }}</span></p>
+    }
     @if (errorMessage()) {
-      <p class="alert alert-danger" role="alert">{{ errorMessage() }}</p>
+      <p class="alert alert-danger login__error" role="alert"><app-icon name="alert" size="sm" /><span>{{ errorMessage() }}</span></p>
     }
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
@@ -17,9 +22,11 @@
           autocomplete="username"
           formControlName="email"
           [class.is-invalid]="form.controls.email.invalid && form.controls.email.touched"
+          [attr.aria-invalid]="form.controls.email.invalid && form.controls.email.touched"
+          [attr.aria-describedby]="form.controls.email.touched && form.controls.email.errors ? 'email-error' : null"
         />
         @if (form.controls.email.touched && form.controls.email.errors) {
-          <span class="error-text">
+          <span class="error-text" id="email-error">
             @if (form.controls.email.errors['required']) {
               Ingresa tu correo electrónico.
             } @else {
@@ -39,18 +46,20 @@
             autocomplete="current-password"
             formControlName="password"
             [class.is-invalid]="form.controls.password.invalid && form.controls.password.touched"
+            [attr.aria-invalid]="form.controls.password.invalid && form.controls.password.touched"
+            [attr.aria-describedby]="form.controls.password.touched && form.controls.password.errors ? 'password-error' : null"
           />
           <button
             type="button"
-            class="btn btn-ghost pw__toggle"
+            class="btn btn-secondary pw__toggle"
             (click)="togglePassword()"
             [attr.aria-pressed]="showPassword()"
           >
-            {{ showPassword() ? 'Ocultar' : 'Mostrar' }}
+            <app-icon name="eye" size="sm" /> {{ showPassword() ? 'Ocultar' : 'Mostrar' }}
           </button>
         </div>
         @if (form.controls.password.touched && form.controls.password.errors) {
-          <span class="error-text">
+          <span class="error-text" id="password-error">
             @if (form.controls.password.errors['required']) {
               Ingresa tu contraseña.
             } @else {
@@ -66,29 +75,71 @@
     </form>
   </section>
 
-  <section class="card demo">
-    <h2>Usuarios de prueba</h2>
+  <!-- 20/11/2026: validación pública de certificados para empresas y terceros. Se abre en una pestaña nueva:
+       la página de inicio de sesión no cambia y no se pide iniciar sesión. -->
+  <section class="card verify-cta" aria-labelledby="verify-cta-title" data-verify-cta>
+    <h2 id="verify-cta-title"><app-icon name="shield" size="sm" /> ¿Necesitas verificar un certificado?</h2>
+    <p class="small muted">Empresas y terceros pueden validar los certificados emitidos con el DNI del participante, sin una cuenta.</p>
+    <a class="btn btn-secondary full" href="/validar-certificado" target="_blank" rel="noopener noreferrer" data-test="validate-certificate">
+      Validar certificado<span class="sr-only"> (se abre en una pestaña nueva)</span>
+    </a>
+  </section>
+
+  <!-- Modo API: sin cuentas de prueba, contraseña de demostración, botones «Usar» ni restablecimiento. -->
+  @if (!apiMode) {
+  <section class="card demo" aria-labelledby="demo-title">
+    <h2 id="demo-title"><app-icon name="users" size="sm" /> Usuarios de prueba</h2>
     <p class="small muted">
       Solo para la demostración (no es autenticación real). Contraseña de todos:
-      <strong>{{ demoPassword }}</strong>
+      <strong class="demo__pw">{{ demoPassword }}</strong>
     </p>
     <ul class="demo__list">
       @for (acc of demoAccounts; track acc.email) {
         <li>
-          <div>
-            <strong class="small">{{ acc.label }}</strong><br />
+          <div class="demo__who">
+            <span class="demo__role">
+              <span class="badge" [class]="accountRole(acc.label) === 'Instructor' ? 'badge--info' : 'badge--neutral'">{{ accountRole(acc.label) }}</span>
+              @if (accountState(acc.label)) {
+                <strong class="small">{{ accountState(acc.label) }}</strong>
+              }
+            </span>
             <span class="small muted">{{ acc.email }}</span>
           </div>
-          <button type="button" class="btn btn-secondary" (click)="fill(acc.email)">Usar</button>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="fill(acc.email)">Usar</button>
         </li>
       }
     </ul>
     @if (resetDone()) {
       <p class="alert alert-success small" role="status">Datos de demostración restablecidos.</p>
     }
-    <div class="row">
-      <a class="small" href="/verificar">Verificar un certificado</a>
-      <button type="button" class="btn btn-ghost small" (click)="resetDemo()">Restablecer datos de demostración</button>
+    <div class="row demo__foot">
+      <a class="demo__verify small" href="/verificar"><app-icon name="shield" size="sm" /> Verificar un certificado</a>
+      @if (!confirmingReset()) {
+        <button #resetTrigger type="button" class="btn btn-ghost btn-sm demo__reset" (click)="askReset()">
+          Restablecer datos de demostración
+        </button>
+      }
     </div>
+    @if (confirmingReset()) {
+      <div
+        class="alert alert-warning reset-confirm"
+        role="alertdialog"
+        aria-labelledby="reset-title"
+        aria-describedby="reset-desc"
+        (keydown.escape)="cancelReset()"
+      >
+        <p id="reset-title"><app-icon name="alert" size="sm" /><strong>¿Restablecer los datos de demostración?</strong></p>
+        <p id="reset-desc" class="small">
+          Se reemplazarán los datos guardados en este navegador por los datos de prueba iniciales: se perderán los
+          participantes, cursos, videos, preguntas, avances, intentos y certificados creados o modificados durante la
+          demostración. Las cuentas de prueba y su contraseña no cambian.
+        </p>
+        <div class="row">
+          <button type="button" class="btn btn-danger btn-sm" (click)="resetDemo()">Sí, restablecer</button>
+          <button #cancelResetButton type="button" class="btn btn-secondary btn-sm" (click)="cancelReset()">Cancelar</button>
+        </div>
+      </div>
+    }
   </section>
+  }
 </div>

@@ -1,0 +1,700 @@
+// Esquema de la base de datos del Aula Virtual IMC (MySQL 8).
+// B1.1: usuarios, empresas, estudiantes, sesiones (tokens de renovación) y bitácora.
+// B2.1: estudiantes en varias empresas (o en ninguna), perfil de Instructor con sus empresas, cursos (solo la
+// estructura mínima para las relaciones) y matrículas.
+// B2.2a: permiso administrativo especial (administración general de IMC), independiente del rol.
+// B2.3c: activación de cuentas de estudiantes por enlace de correo (users.activation_pending y
+// account_activation_tokens).
+// Las demás tablas (contenido de cursos, evaluaciones, intentos, certificados) se agregan en sus fases,
+// cada una con su propia migración. Ver docs/ARQUITECTURA_BACKEND.md, sección 6.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+/// Solo dos perfiles (decisión D-4): Instructor y Estudiante.
+enum Role {
+  INSTRUCTOR
+  STUDENT
+}
+
+/// B2.2a: permisos administrativos especiales, INDEPENDIENTES del rol. No son roles: una cuenta con un permiso sigue
+/// teniendo el rol INSTRUCTOR. Solo se otorgan a usuarios con perfil de Instructor (`InstructorPermission`).
+/// IMC_GENERAL_ADMIN: administración general de IMC (empresas, registro de instructores y su asignación a empresas).
+enum AdminPermission {
+  IMC_GENERAL_ADMIN
+}
+
+model User {
+  id                 String    @id @default(uuid()) @db.VarChar(36)
+  email              String    @unique @db.VarChar(191)
+  passwordHash       String    @map("password_hash") @db.VarChar(255)
+  role               Role
+  /// Nombres y apellidos en campos separados (decisión D-9).
+  firstNames         String    @map("first_names") @db.VarChar(100)
+  lastNames          String    @map("last_names") @db.VarChar(100)
+  active             Boolean   @default(true)
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  /// Intentos fallidos consecutivos; al llegar al máximo se bloquea la cuenta durante un tiempo.
+  failedLogins       Int       @default(0) @map("failed_logins")
+  lockedUntil        DateTime? @map("locked_until") @db.DateTime(3)
+  lastLoginAt        DateTime? @map("last_login_at") @db.DateTime(3)
+  /// Se incrementa al cerrar todas las sesiones o cambiar la contraseña: invalida los tokens de acceso emitidos.
+  sessionVersion     Int       @default(0) @map("session_version")
+  /// B2.3c: cuenta de estudiante registrada por un Instructor que aún no se activó (el estudiante no creó su
+  /// contraseña con el enlace de su correo). Mientras sea true no puede iniciar sesión. Es false para todas las cuentas
+  /// existentes y para las creadas por otros medios (valor por defecto): no se modifican datos al migrar.
+  activationPending  Boolean   @default(false) @map("activation_pending")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  student                Student?                 @relation("StudentProfile")
+  instructor             Instructor?
+  refreshTokens          RefreshToken[]
+  /// B2.3c: enlaces de activación de la cuenta, y los que emitió este usuario (Instructor) para otros.
+  activationTokens       AccountActivationToken[] @relation("ActivationTokenUser")
+  issuedActivationTokens AccountActivationToken[] @relation("ActivationTokenIssuedBy")
+  auditLogs              AuditLog[]
+
+  /// B2.1: quién hizo cada asignación (trazabilidad; NULL en las filas migradas desde B1.1).
+  assignedStudentCompanies    StudentCompany[]    @relation("StudentCompanyAssignedBy")
+  assignedInstructorCompanies InstructorCompany[] @relation("InstructorCompanyAssignedBy")
+  assignedEnrollments         Enrollment[]        @relation("EnrollmentAssignedBy")
+
+  /// B2.2a: permisos administrativos que otorgó este usuario (NULL si se otorgaron por consola).
+  grantedInstructorPermissions InstructorPermission[] @relation("InstructorPermissionGrantedBy")
+
+  /// Integración (17/11/2026): estudiantes que registró este usuario (Instructor).
+  registeredStudents   Student[]           @relation("StudentRegisteredBy")
+  /// Módulo académico (18/11/2026): cursos creados por este usuario (Instructor).
+  createdCourses       Course[]            @relation("CourseCreatedBy")
+  createdLiveSessions  CourseLiveSession[] @relation("LiveSessionCreatedBy")
+  authorizedRecoveries ExamRecovery[]      @relation("RecoveryAuthorizedBy")
+  /// Cierre funcional (23/11/2026): importaciones masivas de certificados ejecutadas por este usuario.
+  certificateImports   CertificateImport[] @relation("CertificateImportActor")
+
+  @@index([role])
+  @@map("users")
+}
+
+model Company {
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  name         String   @unique @db.VarChar(150)
+  /// RUC (decisión D-9). Su formato y obligatoriedad siguen PENDIENTES de definición institucional: se conservan sin
+  /// cambios las restricciones de B1.1 (CHAR(11), obligatorio y único). Ver docs/PENDIENTES.md, 24.2.
+  ruc          String   @unique @db.Char(11)
+  contactEmail String?  @map("contact_email") @db.VarChar(191)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  students    StudentCompany[]
+  instructors InstructorCompany[]
+
+  @@map("companies")
+}
+
+/// Perfil de estudiante (1:1 con users). B2.1: puede pertenecer a varias empresas o a ninguna (`StudentCompany`).
+model Student {
+  userId         String   @id @map("user_id") @db.VarChar(36)
+  /// DNI de 8 dígitos, obligatorio y único (decisión D-9).
+  dni            String   @unique @db.Char(8)
+  /// Integración (17/11/2026): Instructor que registró al estudiante. Decide quién lo ve: cada Instructor ve solo a
+  /// los estudiantes que registró. NULL en los estudiantes anteriores a esta columna (no se asignan a nadie: no son
+  /// visibles para ningún Instructor) y si se elimina la cuenta del Instructor (SET NULL).
+  registeredById String?  @map("registered_by") @db.VarChar(36)
+  /// Cierre funcional (23/11/2026): WhatsApp opcional (+ y 8 a 15 dígitos, o celular peruano de 9). NULL = no registrado.
+  whatsapp       String?  @db.VarChar(16)
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  user         User             @relation("StudentProfile", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  registeredBy User?            @relation("StudentRegisteredBy", fields: [registeredById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  companies    StudentCompany[]
+  enrollments  Enrollment[]
+  examStarts   ExamStart[]
+  examAttempts ExamAttempt[]
+  certificates Certificate[]
+  recoveries   ExamRecovery[]
+
+  @@index([registeredById])
+  @@map("students")
+}
+
+/// B2.1: perfil de Instructor (1:1 con users), como `Student`. Permite que las empresas de un Instructor tengan una
+/// clave foránea propia. No es un rol nuevo: el rol sigue siendo `User.role = INSTRUCTOR`.
+model Instructor {
+  userId    String   @id @map("user_id") @db.VarChar(36)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  user        User                   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  companies   InstructorCompany[]
+  permissions InstructorPermission[]
+
+  @@map("instructors")
+}
+
+/// B2.2a: permisos administrativos especiales de un Instructor. Sin fila = sin permiso (denegación por defecto).
+/// La clave foránea a `instructors` impide otorgar un permiso a un usuario sin perfil de Instructor (un estudiante).
+/// Solo se escribe desde un mecanismo administrativo controlado (comando `admin:grant-general`); ninguna ruta HTTP
+/// acepta permisos enviados por el cliente. Se comprueba en la base en CADA operación protegida (no viaja en el token).
+model InstructorPermission {
+  instructorId String          @map("instructor_id") @db.VarChar(36)
+  permission   AdminPermission
+  /// Quién lo otorgó. NULL cuando se otorga por consola (no hay un usuario actor).
+  grantedById  String?         @map("granted_by") @db.VarChar(36)
+  grantedAt    DateTime        @default(now()) @map("granted_at") @db.DateTime(3)
+
+  instructor Instructor @relation(fields: [instructorId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
+  grantedBy  User?      @relation("InstructorPermissionGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@id([instructorId, permission])
+  @@index([permission])
+  @@index([grantedById])
+  @@map("instructor_permissions")
+}
+
+/// B2.1: empresas de cada estudiante (muchos a muchos). Sin filas = estudiante sin empresa.
+model StudentCompany {
+  studentId    String   @map("student_id") @db.VarChar(36)
+  companyId    String   @map("company_id") @db.VarChar(36)
+  /// Instructor que hizo la asignación. NULL en las asociaciones migradas desde `students.company_id` (B1.1).
+  assignedById String?  @map("assigned_by") @db.VarChar(36)
+  assignedAt   DateTime @default(now()) @map("assigned_at") @db.DateTime(3)
+
+  student    Student @relation(fields: [studentId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assignedBy User?   @relation("StudentCompanyAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@id([studentId, companyId])
+  @@index([companyId])
+  @@index([assignedById])
+  @@map("student_companies")
+}
+
+/// B2.1: empresas que gestiona cada Instructor (muchos a muchos). Determinan qué estudiantes puede ver y gestionar.
+model InstructorCompany {
+  instructorId String   @map("instructor_id") @db.VarChar(36)
+  companyId    String   @map("company_id") @db.VarChar(36)
+  assignedById String?  @map("assigned_by") @db.VarChar(36)
+  assignedAt   DateTime @default(now()) @map("assigned_at") @db.DateTime(3)
+
+  instructor Instructor @relation(fields: [instructorId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assignedBy User?      @relation("InstructorCompanyAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@id([instructorId, companyId])
+  @@index([companyId])
+  @@index([assignedById])
+  @@map("instructor_companies")
+}
+
+/// B2.1: estructura MÍNIMA de un curso, solo para las matrículas. La gestión de cursos (descripción, estado, horas,
+/// portadas, módulos, videos) llega en B3.
+/// Módulo académico (18/11/2026): estado de publicación del curso (RN-03 se exige para publicar).
+enum CourseStatus {
+  BORRADOR
+  PUBLICADO
+}
+
+/// Estado del estudiante en un curso (RN-09). EN_REVISION: rindió con preguntas abiertas aún sin calificar.
+enum EnrollmentStatus {
+  PENDIENTE
+  EN_PROGRESO
+  LISTO_EXAMEN
+  EN_REVISION
+  APROBADO
+  DESAPROBADO
+}
+
+/// Fuente de reproducción del video. Nunca se guarda el archivo en MySQL: solo su referencia.
+enum VideoSourceKind {
+  YOUTUBE
+  DRIVE
+  URL
+  PLACEHOLDER
+}
+
+enum ExamKind {
+  REGULAR
+  RECUPERACION
+}
+
+enum QuestionType {
+  SINGLE
+  MULTIPLE
+  TRUEFALSE
+  OPEN
+}
+
+enum GradingRule {
+  PROPORCIONAL
+  TODO_O_NADA
+}
+
+enum AttemptReviewStatus {
+  EN_REVISION
+  CALIFICADO
+}
+
+enum CertificateStatus {
+  VIGENTE
+  REVOCADO
+}
+
+/// Cierre funcional (23/11/2026): los tres niveles oficiales. Un curso con NULL está «Pendiente de clasificación».
+enum CourseLevel {
+  PERSONA_AUTORIZADA
+  PERSONA_COMPETENTE
+  PERSONA_CERTIFICADA
+}
+
+enum CertificateImportFormat {
+  XLSX
+  CSV
+}
+
+model Course {
+  id            String       @id @default(uuid()) @db.VarChar(36)
+  name          String       @db.VarChar(150)
+  /// Módulo académico (18/11/2026). Campos nuevos con valor por defecto: las filas existentes quedan en borrador.
+  description   String       @default("") @db.VarChar(2000)
+  status        CourseStatus @default(BORRADOR)
+  /// Horas de formación del certificado; NULL = por definir (PENDIENTES D12).
+  trainingHours Int?         @map("training_hours")
+  /// Nivel oficial del curso (23/11/2026). NULL = pendiente de clasificación: no se asigna a los cursos existentes.
+  level         CourseLevel?
+  /// Portada: ruta del proyecto o URL https. NULL = portada de respaldo.
+  coverImage    String?      @map("cover_image") @db.VarChar(500)
+  /// Curso desactivado: no admite matrículas nuevas y no se muestra a los estudiantes (los datos se conservan).
+  active        Boolean      @default(true)
+  /// Instructor dueño del curso: cada Instructor gestiona solo sus cursos (aislamiento, como los estudiantes).
+  createdById   String?      @map("created_by") @db.VarChar(36)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+
+  createdBy    User?               @relation("CourseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  enrollments  Enrollment[]
+  modules      CourseModule[]
+  videos       CourseVideo[]
+  exams        Exam[]
+  attempts     ExamAttempt[]
+  certificates Certificate[]
+  liveSessions CourseLiveSession[]
+  recoveries   ExamRecovery[]
+
+  @@index([createdById])
+  @@map("courses")
+}
+
+/// Módulo del curso (Curso 1─N Módulo 1─N Video). `position` es el orden dentro del curso.
+model CourseModule {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  courseId    String   @map("course_id") @db.VarChar(36)
+  position    Int
+  title       String   @db.VarChar(120)
+  description String?  @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  course       Course              @relation(fields: [courseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  videos       CourseVideo[]
+  liveSessions CourseLiveSession[]
+
+  @@index([courseId])
+  @@map("course_modules")
+}
+
+enum LiveSessionStatus {
+  PROGRAMADA
+  CANCELADA
+}
+
+/// Clase en vivo de un curso (20/11/2026), opcionalmente vinculada a un módulo: enlace externo de Google Meet; no hay
+/// videoconferencia propia. Una clase cancelada se conserva (el estudiante la ve como «Cancelada»). La grabación es el
+/// enlace que el Instructor agrega después (Drive, YouTube u otra fuente https); la plataforma no graba nada.
+model CourseLiveSession {
+  id           String            @id @default(uuid()) @db.VarChar(36)
+  courseId     String            @map("course_id") @db.VarChar(36)
+  moduleId     String?           @map("module_id") @db.VarChar(36)
+  title        String            @db.VarChar(150)
+  description  String?           @db.VarChar(2000)
+  /// Fecha y hora de inicio (UTC; el frontend la muestra en hora de Lima).
+  startsAt     DateTime          @map("starts_at") @db.DateTime(3)
+  /// Enlace https de Google Meet (https://meet.google.com/…).
+  meetUrl      String            @map("meet_url") @db.VarChar(500)
+  /// Enlace https de la grabación (opcional; se agrega cuando la clase ya se realizó).
+  recordingUrl String?           @map("recording_url") @db.VarChar(500)
+  status       LiveSessionStatus @default(PROGRAMADA)
+  createdById  String?           @map("created_by") @db.VarChar(36)
+  createdAt    DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime          @updatedAt @map("updated_at") @db.DateTime(3)
+
+  course    Course        @relation(fields: [courseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  module    CourseModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  createdBy User?         @relation("LiveSessionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([courseId, startsAt])
+  @@index([moduleId])
+  @@index([createdById])
+  @@map("course_live_sessions")
+}
+
+/// Video de un módulo. Solo la referencia (YouTube, Google Drive o URL https de un almacenamiento compatible).
+model CourseVideo {
+  id           String          @id @default(uuid()) @db.VarChar(36)
+  courseId     String          @map("course_id") @db.VarChar(36)
+  moduleId     String          @map("module_id") @db.VarChar(36)
+  /// Orden dentro del módulo.
+  position     Int
+  title        String          @db.VarChar(200)
+  description  String?         @db.VarChar(1000)
+  /// Duración real en segundos (RN-03 se valida sobre este valor).
+  durationSec  Int             @map("duration_sec")
+  published    Boolean         @default(false)
+  sourceKind   VideoSourceKind @default(PLACEHOLDER) @map("source_kind")
+  /// Identificador de YouTube, de archivo de Drive o la URL https, según `sourceKind`.
+  sourceRef    String?         @map("source_ref") @db.VarChar(500)
+  sourceCredit String?         @map("source_credit") @db.VarChar(300)
+  /// Material complementario (enlace https a un documento o recurso).
+  materialUrl  String?         @map("material_url") @db.VarChar(500)
+  createdAt    DateTime        @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.DateTime(3)
+
+  course   Course          @relation(fields: [courseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  module   CourseModule    @relation(fields: [moduleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  progress VideoProgress[]
+
+  @@index([courseId])
+  @@index([moduleId])
+  @@map("course_videos")
+}
+
+/// Video completado por un estudiante en su matrícula (progreso, RN-11).
+model VideoProgress {
+  enrollmentId String   @map("enrollment_id") @db.VarChar(36)
+  videoId      String   @map("video_id") @db.VarChar(36)
+  completedAt  DateTime @default(now()) @map("completed_at") @db.DateTime(3)
+
+  enrollment Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  video      CourseVideo @relation(fields: [videoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([enrollmentId, videoId])
+  @@index([videoId])
+  @@map("video_progress")
+}
+
+/// Evaluación de un curso. Un examen regular activo por curso (D1). Un solo intento por estudiante (MAX_ATTEMPTS).
+model Exam {
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  courseId      String    @map("course_id") @db.VarChar(36)
+  title         String    @db.VarChar(120)
+  active        Boolean   @default(true)
+  kind          ExamKind  @default(REGULAR)
+  parentExamId  String?   @map("parent_exam_id") @db.VarChar(36)
+  timeMinutes   Int       @map("time_minutes")
+  passScore     Int       @map("pass_score")
+  scaleMax      Int       @map("scale_max")
+  /// Fecha desde la que se puede rendir (NULL = sin restricción).
+  availableFrom DateTime? @map("available_from") @db.DateTime(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  course              Course         @relation(fields: [courseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  questions           ExamQuestion[]
+  starts              ExamStart[]
+  attempts            ExamAttempt[]
+  recoveriesTaken     ExamRecovery[] @relation("RecoveryExam")
+  recoveriesOfRegular ExamRecovery[] @relation("RecoveryRegularExam")
+
+  @@index([courseId])
+  @@map("exams")
+}
+
+/// Pregunta (RN-12). `options` y `correct` en JSON; en las abiertas van vacíos. `points` admite medios puntos.
+model ExamQuestion {
+  id          String       @id @default(uuid()) @db.VarChar(36)
+  examId      String       @map("exam_id") @db.VarChar(36)
+  position    Int
+  type        QuestionType
+  text        String       @db.VarChar(1000)
+  options     Json
+  correct     Json
+  points      Float
+  selectCount Int?         @map("select_count")
+  rubric      String?      @db.VarChar(1000)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([examId])
+  @@map("exam_questions")
+}
+
+/// Inicio registrado en el servidor (RN-14): el tiempo lo controla el servidor. Uno por estudiante y examen.
+model ExamStart {
+  id               String    @id @default(uuid()) @db.VarChar(36)
+  studentId        String    @map("student_id") @db.VarChar(36)
+  examId           String    @map("exam_id") @db.VarChar(36)
+  startedAt        DateTime  @map("started_at") @db.DateTime(3)
+  endsAt           DateTime  @map("ends_at") @db.DateTime(3)
+  /// Respuestas guardadas mientras se rinde (por pregunta), para recargas y la entrega por tiempo.
+  answers          Json?
+  answersUpdatedAt DateTime? @map("answers_updated_at") @db.DateTime(3)
+  closedAt         DateTime? @map("closed_at") @db.DateTime(3)
+  attemptId        String?   @map("attempt_id") @db.VarChar(36)
+
+  student Student @relation(fields: [studentId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([studentId, examId])
+  @@index([examId])
+  @@map("exam_starts")
+}
+
+/// Intento calificado (persistente). RN-07: uno por estudiante, examen y tipo (índice único).
+model ExamAttempt {
+  id             String               @id @default(uuid()) @db.VarChar(36)
+  studentId      String               @map("student_id") @db.VarChar(36)
+  courseId       String               @map("course_id") @db.VarChar(36)
+  examId         String               @map("exam_id") @db.VarChar(36)
+  kind           ExamKind             @default(REGULAR)
+  submittedAt    DateTime             @default(now()) @map("submitted_at") @db.DateTime(3)
+  durationSec    Int                  @map("duration_sec")
+  score          Int
+  scaleMax       Int                  @map("scale_max")
+  correctCount   Int                  @map("correct_count")
+  totalQuestions Int                  @map("total_questions")
+  passed         Boolean
+  answers        Json
+  gradingRule    GradingRule          @default(PROPORCIONAL) @map("grading_rule")
+  questionScores Json                 @map("question_scores")
+  maxPoints      Float                @map("max_points")
+  autoSubmitted  Boolean              @default(false) @map("auto_submitted")
+  reviewStatus   AttemptReviewStatus? @map("review_status")
+  manualScores   Json?                @map("manual_scores")
+  gradedAt       DateTime?            @map("graded_at") @db.DateTime(3)
+
+  student     Student       @relation(fields: [studentId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
+  course      Course        @relation(fields: [courseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  exam        Exam          @relation(fields: [examId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  certificate Certificate?
+  recovery    ExamRecovery?
+
+  @@unique([studentId, examId, kind])
+  @@index([courseId])
+  @@index([examId])
+  @@map("exam_attempts")
+}
+
+/// Certificado (RN-08): conserva los datos del momento de emisión. Uno por intento aprobado.
+/// Cierre funcional (23/11/2026): los certificados IMPORTADOS no tienen intento, nota ni fecha de aprobación (NULL: no se
+/// inventan). Nombres, apellidos, empresa y nivel son copias del momento de emisión; NULL en los certificados anteriores.
+model Certificate {
+  id                    String            @id @default(uuid()) @db.VarChar(36)
+  code                  String            @unique @db.VarChar(40)
+  studentId             String            @map("student_id") @db.VarChar(36)
+  courseId              String            @map("course_id") @db.VarChar(36)
+  attemptId             String?           @unique @map("attempt_id") @db.VarChar(36)
+  participantName       String            @map("participant_name") @db.VarChar(201)
+  participantFirstNames String?           @map("participant_first_names") @db.VarChar(100)
+  participantLastNames  String?           @map("participant_last_names") @db.VarChar(100)
+  participantDni        String?           @map("participant_dni") @db.Char(8)
+  participantCompany    String?           @map("participant_company") @db.VarChar(500)
+  courseName            String            @map("course_name") @db.VarChar(150)
+  courseLevel           CourseLevel?      @map("course_level")
+  approvalDate          DateTime?         @map("approval_date") @db.DateTime(3)
+  issueDate             DateTime          @map("issue_date") @db.DateTime(3)
+  score                 Int?
+  scaleMax              Int?              @map("scale_max")
+  trainingHours         Int?              @map("training_hours")
+  entityName            String            @map("entity_name") @db.VarChar(150)
+  status                CertificateStatus @default(VIGENTE)
+  /// Importación masiva que lo creó; NULL = emitido por la plataforma.
+  importId              String?           @map("import_id") @db.VarChar(36)
+
+  student    Student            @relation(fields: [studentId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
+  course     Course             @relation(fields: [courseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  attempt    ExamAttempt?       @relation(fields: [attemptId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  importedBy CertificateImport? @relation(fields: [importId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([studentId])
+  @@index([courseId])
+  @@index([importId])
+  @@map("certificates")
+}
+
+/// Registro de cada importación masiva confirmada (23/11/2026). `errors` guarda fila, campo y motivo, sin DNI ni nombres.
+model CertificateImport {
+  id             String                  @id @default(uuid()) @db.VarChar(36)
+  actorId        String?                 @map("actor_id") @db.VarChar(36)
+  actorName      String                  @map("actor_name") @db.VarChar(201)
+  fileName       String                  @map("file_name") @db.VarChar(255)
+  format         CertificateImportFormat
+  fileHash       String                  @map("file_hash") @db.Char(64)
+  totalRows      Int                     @map("total_rows")
+  importedCount  Int                     @map("imported_count")
+  rejectedCount  Int                     @map("rejected_count")
+  duplicateCount Int                     @map("duplicate_count")
+  errors         Json
+  createdAt      DateTime                @default(now()) @map("created_at") @db.DateTime(3)
+
+  actor        User?         @relation("CertificateImportActor", fields: [actorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  certificates Certificate[]
+
+  @@index([actorId, createdAt])
+  @@map("certificate_imports")
+}
+
+/// B2.1: matrícula de un estudiante en un curso. Un estudiante puede tener varios cursos; nunca dos veces el mismo.
+/// Sin columna de estado: la condición del estudiante se calcula (como en el frontend) y no se inventan estados nuevos.
+model Enrollment {
+  id           String           @id @default(uuid()) @db.VarChar(36)
+  studentId    String           @map("student_id") @db.VarChar(36)
+  courseId     String           @map("course_id") @db.VarChar(36)
+  assignedById String?          @map("assigned_by") @db.VarChar(36)
+  assignedAt   DateTime         @default(now()) @map("assigned_at") @db.DateTime(3)
+  /// Módulo académico (18/11/2026): estado (RN-09) e inicio del curso. Por defecto PENDIENTE y sin inicio.
+  status       EnrollmentStatus @default(PENDIENTE)
+  startedAt    DateTime?        @map("started_at") @db.DateTime(3)
+
+  student    Student         @relation(fields: [studentId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
+  course     Course          @relation(fields: [courseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assignedBy User?           @relation("EnrollmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  progress   VideoProgress[]
+
+  @@unique([studentId, courseId])
+  @@index([courseId])
+  @@index([assignedById])
+  @@map("enrollments")
+}
+
+/// Token de renovación. Se guarda solo su hash (SHA-256). Los tokens de una misma sesión comparten `familyId`:
+/// cada renovación revoca el anterior (rotación) y reutilizar uno ya rotado revoca toda la familia.
+model RefreshToken {
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  userId        String    @map("user_id") @db.VarChar(36)
+  tokenHash     String    @unique @map("token_hash") @db.Char(64)
+  familyId      String    @map("family_id") @db.VarChar(36)
+  /// Vencimiento absoluto de la sesión: las rotaciones lo heredan (máximo 7 días desde el inicio de sesión).
+  expiresAt     DateTime  @map("expires_at") @db.DateTime(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  revokedAt     DateTime? @map("revoked_at") @db.DateTime(3)
+  revokedReason String?   @map("revoked_reason") @db.VarChar(40)
+  replacedById  String?   @map("replaced_by_id") @db.VarChar(36)
+  userAgent     String?   @map("user_agent") @db.VarChar(255)
+  ip            String?   @db.VarChar(45)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+/// B2.3c: enlace de activación de cuenta (único, temporal y de un solo uso). Se guarda SOLO el hash SHA-256 del token
+/// (256 bits aleatorios); el token viaja únicamente en el enlace del correo. `used_at` lo consume; `revoked_at` lo anula
+/// cuando se emite uno nuevo o la cuenta se activa con otro.
+model AccountActivationToken {
+  id         String    @id @default(uuid()) @db.VarChar(36)
+  userId     String    @map("user_id") @db.VarChar(36)
+  tokenHash  String    @unique @map("token_hash") @db.Char(64)
+  expiresAt  DateTime  @map("expires_at") @db.DateTime(3)
+  usedAt     DateTime? @map("used_at") @db.DateTime(3)
+  revokedAt  DateTime? @map("revoked_at") @db.DateTime(3)
+  /// Instructor que registró al estudiante o reenvió el enlace. NULL si esa cuenta se elimina.
+  issuedById String?   @map("issued_by") @db.VarChar(36)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+
+  user     User  @relation("ActivationTokenUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  issuedBy User? @relation("ActivationTokenIssuedBy", fields: [issuedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([userId])
+  @@index([issuedById])
+  @@map("account_activation_tokens")
+}
+
+/// Bitácora de acciones sensibles. Nunca guarda contraseñas ni tokens.
+model AuditLog {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  actorId   String?  @map("actor_id") @db.VarChar(36)
+  action    String   @db.VarChar(60)
+  entity    String?  @db.VarChar(60)
+  entityId  String?  @map("entity_id") @db.VarChar(36)
+  data      Json?
+  ip        String?  @db.VarChar(45)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+enum RecoveryReason {
+  DESAPROBADO
+  AUSENTE
+}
+
+enum RecoveryMode {
+  ORIGINAL
+  INDEPENDIENTE
+}
+
+/// Recuperación de examen (21/11/2026) autorizada EXPRESAMENTE por el Instructor a un estudiante que desaprobó el
+/// examen regular. Modalidad ORIGINAL (se reabre el examen regular) o INDEPENDIENTE (examen kind RECUPERACION).
+/// Como máximo una no anulada por estudiante y curso (lo controla el servicio). El inicio, las respuestas guardadas y
+/// el intento de la recuperación se registran AQUÍ (no en exam_starts): así la modalidad ORIGINAL no choca con el
+/// inicio regular. El intento regular nunca se modifica; el de recuperación es un ExamAttempt kind RECUPERACION.
+model ExamRecovery {
+  id               String         @id @default(uuid()) @db.VarChar(36)
+  studentId        String         @map("student_id") @db.VarChar(36)
+  courseId         String         @map("course_id") @db.VarChar(36)
+  regularExamId    String         @map("regular_exam_id") @db.VarChar(36)
+  examId           String         @map("exam_id") @db.VarChar(36)
+  reason           RecoveryReason @default(DESAPROBADO)
+  mode             RecoveryMode
+  /// Ventana para INICIAR la recuperación (quien inicia a tiempo tiene la duración completa del examen).
+  opensAt          DateTime       @map("opens_at") @db.DateTime(3)
+  closesAt         DateTime       @map("closes_at") @db.DateTime(3)
+  authorizedById   String?        @map("authorized_by") @db.VarChar(36)
+  authorizedAt     DateTime       @default(now()) @map("authorized_at") @db.DateTime(3)
+  /// Anulada antes de iniciarse: no consume la oportunidad.
+  cancelledAt      DateTime?      @map("cancelled_at") @db.DateTime(3)
+  startedAt        DateTime?      @map("started_at") @db.DateTime(3)
+  endsAt           DateTime?      @map("ends_at") @db.DateTime(3)
+  /// Respuestas guardadas mientras se rinde (recargas y entrega por tiempo).
+  answers          Json?
+  answersUpdatedAt DateTime?      @map("answers_updated_at") @db.DateTime(3)
+  closedAt         DateTime?      @map("closed_at") @db.DateTime(3)
+  attemptId        String?        @unique @map("attempt_id") @db.VarChar(36)
+  /// La ventana cerró sin inicio: «No rindió recuperación» (registro definitivo, no crea intento ni nota).
+  noShowAt         DateTime?      @map("no_show_at") @db.DateTime(3)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.DateTime(3)
+
+  student      Student      @relation(fields: [studentId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  regularExam  Exam         @relation("RecoveryRegularExam", fields: [regularExamId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  exam         Exam         @relation("RecoveryExam", fields: [examId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  authorizedBy User?        @relation("RecoveryAuthorizedBy", fields: [authorizedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  attempt      ExamAttempt? @relation(fields: [attemptId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([studentId, courseId])
+  @@index([courseId])
+  @@index([regularExamId])
+  @@index([examId])
+  @@index([authorizedById])
+  @@map("exam_recoveries")
+}

@@ -1,18 +1,45 @@
 <div class="stack">
-  <section class="card stack">
-    <div>
-      <h1>Verificar certificado</h1>
-      <p class="muted">Comprueba que un certificado corresponde a una aprobación registrada.</p>
-    </div>
+  <section class="card stack verify">
+    <header class="verify__head">
+      <span class="verify__seal" aria-hidden="true"><app-icon name="shield" /></span>
+      <div>
+        @if (publicDni) {
+          <h1>Validación de certificados</h1>
+          <p class="muted">
+            Servicio público de Aula Virtual IMC para empresas y terceros: ingresa el DNI del participante para comprobar
+            la validez de los certificados emitidos. No necesitas una cuenta.
+          </p>
+        } @else {
+          <h1>Verificar certificado</h1>
+          <p class="muted">Comprueba que un certificado corresponde a una aprobación registrada.</p>
+        }
+      </div>
+    </header>
 
+    @if (!publicDni) {
     <div class="modes" role="group" aria-label="Forma de verificación">
-      <button type="button" class="btn" [class.btn-primary]="mode() === 'code'" [class.btn-secondary]="mode() !== 'code'" (click)="setMode('code')">
+      <button
+        type="button"
+        class="btn"
+        [class.btn-primary]="mode() === 'code'"
+        [class.btn-secondary]="mode() !== 'code'"
+        [attr.aria-pressed]="mode() === 'code'"
+        (click)="setMode('code')"
+      >
         Por código
       </button>
-      <button type="button" class="btn" [class.btn-primary]="mode() === 'dni'" [class.btn-secondary]="mode() !== 'dni'" (click)="setMode('dni')">
+      <button
+        type="button"
+        class="btn"
+        [class.btn-primary]="mode() === 'dni'"
+        [class.btn-secondary]="mode() !== 'dni'"
+        [attr.aria-pressed]="mode() === 'dni'"
+        (click)="setMode('dni')"
+      >
         Por DNI
       </button>
     </div>
+    }
 
     <form (submit)="$event.preventDefault(); search()" novalidate>
       <div class="field">
@@ -23,22 +50,29 @@
           type="text"
           [formControl]="query"
           [attr.inputmode]="mode() === 'dni' ? 'numeric' : 'text'"
+          [attr.maxlength]="mode() === 'dni' ? 8 : 40"
+          [attr.autocomplete]="'off'"
           [placeholder]="mode() === 'code' ? 'Ej.: IMC-DEMO-0001' : 'Ej.: 00000001'"
           [class.is-invalid]="(query.invalid && query.touched) || inputError()"
+          [attr.aria-invalid]="(query.invalid && query.touched) || !!inputError()"
+          [attr.aria-describedby]="(query.invalid && query.touched) || inputError() ? 'query-error' : null"
         />
         @if (query.invalid && query.touched) {
-          <span class="error-text">Ingresa un valor para verificar.</span>
+          <span class="error-text" id="query-error">Ingresa un valor para verificar.</span>
         }
         @if (inputError()) {
-          <span class="error-text">{{ inputError() }}</span>
+          <span class="error-text" id="query-error">{{ inputError() }}</span>
         }
       </div>
-      <button type="submit" class="btn btn-primary" [class.is-loading]="searching()" [disabled]="searching()">
-        Verificar
+      <button type="submit" class="btn btn-primary verify__submit" [class.is-loading]="searching()" [disabled]="searching()">
+        <app-icon name="shield" size="sm" /> {{ publicDni ? 'Consultar certificado' : 'Verificar' }}
       </button>
     </form>
 
-    <p class="alert alert-info small">
+    @if (publicDni) {
+      <p class="small muted">Solo se muestran el titular, el curso, el código, la fecha de emisión y el estado de cada certificado.</p>
+    }
+    <p class="alert alert-info small demo-only">
       Verificación de demostración: consulta solo datos de prueba (por ejemplo, el código
       <strong>IMC-DEMO-0001</strong> o el DNI <strong>00000001</strong>). La verificación definitiva consultará
       el backend y confirmará que el certificado corresponde a una aprobación registrada.
@@ -49,10 +83,49 @@
     <p class="card muted" role="status">Verificando…</p>
   }
 
-  @if (searched() && !searching()) {
+  @if (publicDni && searched() && !searching()) {
+    <!-- Validación pública: solo los datos indispensables de cada certificado del DNI consultado. -->
     @if (results().length === 0) {
-      <section class="card stack" role="status">
-        <span class="badge badge--warning">No encontrado</span>
+      <section class="card stack result result--missing" role="status" data-public-empty>
+        <div class="result__head">
+          <span class="result__icon" aria-hidden="true"><app-icon name="alert" /></span>
+          <span class="badge badge--warning">Sin resultados</span>
+        </div>
+        <h2>No se encontraron certificados asociados al DNI ingresado</h2>
+        <p class="muted">Revisa que el DNI esté bien escrito. Si el problema continúa, comunícate con la empresa capacitadora.</p>
+      </section>
+    } @else {
+      <p class="small muted" role="status">{{ results().length }} {{ results().length === 1 ? 'certificado encontrado' : 'certificados encontrados' }}.</p>
+      @for (c of results(); track c.id) {
+        <section class="card stack result" [class.result--ok]="c.status === 'vigente'" [class.result--bad]="c.status !== 'vigente'" [attr.data-public-result]="c.code">
+          <div class="result__head">
+            <span class="result__icon" aria-hidden="true"><app-icon [name]="c.status === 'vigente' ? 'check-circle' : 'x-circle'" /></span>
+            @if (c.status === 'vigente') {
+              <span class="badge badge--success">Certificado válido</span>
+            } @else {
+              <span class="badge badge--danger">Este certificado no se encuentra vigente</span>
+            }
+          </div>
+          <dl class="data">
+            <div><dt>Titular</dt><dd>{{ c.participantName }}</dd></div>
+            <div><dt>Curso</dt><dd>{{ c.courseName }}</dd></div>
+            <div><dt>Código</dt><dd class="code">{{ c.code }}</dd></div>
+            <div><dt>Fecha de emisión</dt><dd>{{ c.issueDate | date: 'dd/MM/yyyy' }}</dd></div>
+            <div><dt>Estado</dt><dd>{{ c.status === 'vigente' ? 'Vigente' : 'Anulado' }}</dd></div>
+            <div><dt>Resultado de la validación</dt><dd>{{ c.status === 'vigente' ? 'Certificado válido' : 'Este certificado no se encuentra vigente' }}</dd></div>
+          </dl>
+        </section>
+      }
+    }
+  }
+
+  @if (!publicDni && searched() && !searching()) {
+    @if (results().length === 0) {
+      <section class="card stack result result--missing" role="status">
+        <div class="result__head">
+          <span class="result__icon" aria-hidden="true"><app-icon name="alert" /></span>
+          <span class="badge badge--warning">No encontrado</span>
+        </div>
         <h2>No encontramos un certificado con “{{ lastQuery() }}”</h2>
         <p class="muted">
           Revisa que el dato esté bien escrito. Si el problema continúa, comunícate con la empresa capacitadora.
@@ -60,18 +133,23 @@
       </section>
     } @else {
       @for (c of results(); track c.id) {
-        <section class="card stack" role="status">
-          @if (c.status === 'vigente') {
-            <span class="badge badge--success">Certificado válido</span>
-          } @else {
-            <span class="badge badge--danger">Certificado revocado</span>
-          }
+        <section class="card stack result" [class.result--ok]="c.status === 'vigente'" [class.result--bad]="c.status !== 'vigente'" role="status">
+          <div class="result__head">
+            <span class="result__icon" aria-hidden="true"><app-icon [name]="c.status === 'vigente' ? 'check-circle' : 'x-circle'" /></span>
+            @if (c.status === 'vigente') {
+              <span class="badge badge--success">Certificado válido</span>
+            } @else {
+              <span class="badge badge--danger">Certificado revocado</span>
+            }
+          </div>
           <dl class="data">
             <div><dt>Código</dt><dd class="code">{{ c.code }}</dd></div>
             <div><dt>Participante</dt><dd>{{ c.participantName }}</dd></div>
             <div><dt>Curso</dt><dd>{{ c.courseName }}</dd></div>
             <div><dt>Fecha de emisión</dt><dd>{{ c.issueDate | date: 'dd/MM/yyyy' }}</dd></div>
-            <div><dt>Horas de formación</dt><dd>{{ c.trainingHours }} h</dd></div>
+            @if (c.trainingHours !== undefined) {
+              <div><dt>Horas de formación</dt><dd>{{ c.trainingHours | trainingHours }}</dd></div>
+            }
             <div><dt>Estado de la verificación</dt><dd>{{ c.status === 'vigente' ? 'Vigente' : 'Revocado' }}</dd></div>
           </dl>
         </section>

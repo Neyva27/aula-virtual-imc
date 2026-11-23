@@ -1,2 +1,26 @@
-.head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
-.between { justify-content: space-between; }
+.courses {
+  list-style: none; margin-left: 0; margin-right: 0; margin-bottom: 0; padding: 0;
+  display: grid; gap: var(--space-5); grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+}
+/* Toda la tarjeta es clicable mediante el enlace del título (::after), sin anidar elementos interactivos. */
+.course {
+  position: relative; display: flex; flex-direction: column; padding: 0; overflow: hidden;
+  transition: box-shadow 0.15s, border-color 0.15s, transform 0.15s;
+}
+.course:hover { border-color: var(--c-primary-300); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.course:has(.course__link:focus-visible) { outline: 3px solid var(--c-focus); outline-offset: 2px; }
+.course__body { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5) var(--space-5); flex: 1; }
+.tags { gap: var(--space-2); }
+.course__title { margin: 0; font-size: var(--text-lg); font-weight: var(--weight-bold); }
+.course__link { color: var(--c-primary); text-decoration: none; }
+.course__link::after { content: ''; position: absolute; inset: 0; }
+.course__link:focus-visible { outline: none; }
+.course__desc {
+  margin: 0; font-size: var(--text-sm);
+  display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.course__progress { display: grid; gap: var(--space-1); }
+.course__progress .label { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.course__progress p { margin: 0; }
+.course__cta { align-self: flex-start; margin-top: auto; }
+@media (max-width: 600px) { .course__cta { align-self: stretch; } }

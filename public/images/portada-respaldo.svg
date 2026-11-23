@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" aria-hidden="true">
+  <!-- Portada de respaldo: se muestra cuando un curso no tiene imagen o no se puede cargar. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e6ebf7"/>
+      <stop offset="1" stop-color="#d9dfeb"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#bg)"/>
+  <g fill="#0a1e50" fill-opacity="0.12">
+    <rect x="248" y="120" width="144" height="104" rx="12"/>
+  </g>
+  <g fill="none" stroke="#0a1e50" stroke-opacity="0.35" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="248" y="120" width="144" height="104" rx="12"/>
+    <path d="M264 206 L304 166 L330 192 L348 176 L376 206"/>
+  </g>
+  <circle cx="352" cy="148" r="10" fill="#0a1e50" fill-opacity="0.35"/>
+</svg>

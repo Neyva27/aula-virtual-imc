@@ -1,5 +1,5 @@
 <div class="stack">
-  <header>
+  <header class="page-head">
     <h1>Mis certificados</h1>
     <p class="muted">Aquí encontrarás los certificados de los cursos que has aprobado.</p>
   </header>
@@ -13,89 +13,96 @@
       <p class="alert alert-danger" role="alert">{{ downloadError() }}</p>
     }
 
-    @switch (state()) {
-      @case ('available') {
-        @for (cert of certificates(); track cert.id) {
-          <article class="card">
-            <div class="head">
-              <div>
-                <h2>{{ cert.courseName }}</h2>
-                <p class="muted small">{{ cert.entityName }}</p>
-              </div>
-              <span class="badge" [class]="cert.status === 'vigente' ? 'badge--success' : 'badge--danger'">
-                {{ cert.status === 'vigente' ? 'Vigente' : 'Revocado' }}
-              </span>
-            </div>
+    @for (cert of certificates(); track cert.id) {
+      <article class="card cert">
+        <div class="head">
+          <span class="seal" aria-hidden="true"><app-icon name="award" /></span>
+          <div class="head__text">
+            <h2>{{ cert.courseName }}</h2>
+            <p class="muted small">{{ cert.entityName }}</p>
+          </div>
+          <span class="badge" [class]="cert.status === 'vigente' ? 'badge--success' : 'badge--danger'">
+            {{ cert.status === 'vigente' ? 'Vigente' : 'Revocado' }}
+          </span>
+        </div>
 
-            <dl class="data">
-              <div><dt>Participante</dt><dd>{{ cert.participantName }}</dd></div>
-              <div><dt>Fecha de aprobación</dt><dd>{{ cert.approvalDate | date: 'dd/MM/yyyy' }}</dd></div>
-              <div><dt>Fecha de emisión</dt><dd>{{ cert.issueDate | date: 'dd/MM/yyyy' }}</dd></div>
-              <div><dt>Nota obtenida</dt><dd>{{ cert.score }} / {{ scaleMax }}</dd></div>
-              <div><dt>Horas de formación</dt><dd>{{ cert.trainingHours }} h</dd></div>
-              <div><dt>Código único</dt><dd class="code">{{ cert.code }}</dd></div>
-            </dl>
+        <dl class="data">
+          <div><dt>Participante</dt><dd>{{ cert.participantName }}</dd></div>
+          @if (cert.participantDni) { <div><dt>DNI</dt><dd>{{ cert.participantDni }}</dd></div> }
+          @if (cert.participantCompany) { <div><dt>Empresa</dt><dd>{{ cert.participantCompany }}</dd></div> }
+          @if (cert.approvalDate) { <div><dt>Fecha de aprobación</dt><dd>{{ cert.approvalDate | date: 'dd/MM/yyyy' }}</dd></div> }
+          <div><dt>Fecha de emisión</dt><dd>{{ cert.issueDate | date: 'dd/MM/yyyy' }}</dd></div>
+          @if (cert.score !== null) { <div><dt>Nota obtenida</dt><dd>{{ cert.score }} / {{ cert.scaleMax }}</dd></div> }
+          <div><dt>Horas de formación</dt><dd>{{ cert.trainingHours | trainingHours }}</dd></div>
+          <div><dt>Código único</dt><dd class="code">{{ cert.code }}</dd></div>
+        </dl>
 
-            <div class="row">
-              <a class="btn btn-secondary" [routerLink]="['/certificados', cert.id]">Visualizar</a>
-              <button
-                type="button"
-                class="btn btn-primary"
-                [class.is-loading]="downloadingId() === cert.id"
-                [disabled]="downloadingId() === cert.id"
-                (click)="download(cert)"
-              >
-                Descargar PDF
-              </button>
-              <a class="btn btn-ghost" [routerLink]="['/verificar', cert.code]">Verificar autenticidad</a>
-            </div>
-          </article>
-        }
-        <p class="alert alert-info small">
-          Plantilla de certificado provisional y QR de prueba. La plantilla oficial se incorporará cuando
-          la entregue la empresa.
+        <div class="row actions">
+          <a class="btn btn-secondary" [routerLink]="['/certificados', cert.id]"><app-icon name="eye" size="sm" /> Visualizar</a>
+          <button
+            type="button"
+            class="btn btn-primary"
+            [class.is-loading]="downloadingId() === cert.id"
+            [disabled]="downloadingId() === cert.id"
+            (click)="download(cert)"
+          >
+            <app-icon name="download" size="sm" /> Descargar PDF
+          </button>
+          <a class="btn btn-ghost" [routerLink]="['/verificar', cert.code]"><app-icon name="shield" size="sm" /> Verificar autenticidad</a>
+        </div>
+      </article>
+    }
+    @if (certificates().length > 0) {
+      <p class="alert alert-info small">
+        Plantilla de certificado provisional y QR de prueba. La plantilla oficial se incorporará cuando
+        la entregue la empresa.
+      </p>
+    }
+
+    @for (item of pending(); track item.course.course.id) {
+      <article class="card stack">
+        <span class="badge badge--warning">Pendiente de habilitación</span>
+        <h2>{{ item.course.course.name }}</h2>
+        <p>
+          Ya aprobaste el examen. En cuanto la plataforma emita tu certificado, lo verás aquí para
+          visualizarlo y descargarlo.
         </p>
-      }
+      </article>
+    }
 
-      @case ('pending') {
-        <article class="card stack">
-          <span class="badge badge--warning">Pendiente de habilitación</span>
-          <h2>Tu certificado aún no está habilitado</h2>
-          <p>
-            Ya aprobaste el examen. En cuanto la plataforma emita tu certificado, lo verás aquí para
-            visualizarlo y descargarlo.
-          </p>
-        </article>
-      }
+    @if (certificates().length === 0 && pending().length === 0) {
+      <article class="card empty">
+        <app-icon name="award" size="lg" />
+        <span class="badge badge--neutral">Sin certificado disponible</span>
+        <h2>Todavía no tienes certificados</h2>
+        <p class="muted">El certificado de cada curso se habilita cuando completas sus videos y apruebas su examen.</p>
+      </article>
+    }
 
-      @default {
-        <article class="card stack">
-          <span class="badge badge--neutral">Sin certificado disponible</span>
-          <h2>Todavía no tienes certificados</h2>
-          @switch (enrollment()?.status) {
-            @case ('listo_examen') {
-              <p>Ya completaste los videos. Rinde el examen y, si apruebas, tu certificado se habilitará.</p>
-              <a class="btn btn-primary" routerLink="/examen/instrucciones">Ir al examen</a>
-            }
-            @case ('desaprobado') {
-              @if (remainingAttempts() > 0) {
-                <p>
-                  No alcanzaste la nota mínima. Te {{ remainingAttempts() === 1 ? 'queda' : 'quedan' }}
-                  <strong>{{ remainingAttempts() }}</strong>
-                  {{ remainingAttempts() === 1 ? 'intento disponible' : 'intentos disponibles' }}.
+    @if (inProgress().length > 0) {
+      <section class="card stack">
+        <h2 class="section-title">Cursos sin certificado <span class="count">{{ inProgress().length }}</span></h2>
+        <ul class="pending" role="list">
+          @for (item of inProgress(); track item.course.course.id) {
+            <li class="pending__item">
+              <div>
+                <strong>{{ item.course.course.name }}</strong>
+                @if (item.course.preview) {
+                  <span class="badge badge--warning">Borrador · demo</span>
+                }
+                <p class="small muted">
+                  {{ item.availability.available ? 'Ya puedes rendir el examen de este curso.' : item.availability.reason }}
                 </p>
-                <a class="btn btn-primary" routerLink="/examen/instrucciones">Volver a intentarlo</a>
+              </div>
+              @if (item.availability.available) {
+                <a class="btn btn-primary" [routerLink]="['/cursos', item.course.course.id, 'examen']">Ir al examen</a>
               } @else {
-                <p>No alcanzaste la nota mínima y ya no tienes intentos disponibles. Comunícate con la empresa.</p>
+                <a class="btn btn-secondary" [routerLink]="['/cursos', item.course.course.id]">Ir al curso</a>
               }
-            }
-            @default {
-              <p>El certificado se habilita cuando completas todos los videos del curso y apruebas el examen.</p>
-              <a class="btn btn-primary" routerLink="/curso">Ir a mi curso</a>
-            }
+            </li>
           }
-        </article>
-      }
+        </ul>
+      </section>
     }
   }
 </div>

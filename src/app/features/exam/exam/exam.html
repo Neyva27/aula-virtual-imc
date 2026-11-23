@@ -1,16 +1,19 @@
-<div class="stack">
+<!-- Modo enfoque: el layout oculta la navegación general mientras se rinde el examen. -->
+<div class="stack exam">
   <header class="bar card">
-    <div>
-      <h1>Examen</h1>
+    <div class="bar__info">
+      <!-- R6: identifica si se está rindiendo la recuperación (el examen lo decide el repositorio). -->
+      <h1>{{ isRecovery() ? 'Examen de recuperación' : 'Examen' }}</h1>
       <p class="small muted">Pregunta {{ index() + 1 }} de {{ questions().length }} · {{ answeredCount() }} respondidas</p>
     </div>
     <div class="timer" [class.is-low]="lowTime()" role="timer" aria-live="off">
-      <span class="small">Tiempo restante</span>
+      <span class="timer__label small"><app-icon name="clock" size="sm" /> Tiempo restante</span>
       <strong>{{ timeLabel() }}</strong>
     </div>
+    <div class="bar__progress">
+      <app-progress-bar [value]="percent()" label="Avance del examen" />
+    </div>
   </header>
-
-  <app-progress-bar [value]="percent()" label="Avance del examen" />
 
   @if (error()) {
     <p class="alert alert-danger" role="alert">{{ error() }}</p>
@@ -18,26 +21,63 @@
 
   @if (loading()) {
     <p class="card muted" role="status">Cargando preguntas…</p>
+  } @else if (rejected()) {
+    <section class="card stack" aria-labelledby="rejected-title">
+      <h2 id="rejected-title">No se registró la entrega.</h2>
+      <p>El examen ya no se puede rendir, por el motivo indicado arriba. No se guardó un intento nuevo.</p>
+      <div><a class="btn btn-primary" [routerLink]="['/cursos', courseId(), 'examen']">Volver a las instrucciones</a></div>
+    </section>
   } @else if (current(); as q) {
     <div class="layout">
-      <section class="card stack">
+      <section class="card stack question">
         <fieldset class="q">
           <legend>
             <span class="badge badge--info">
-              {{ q.type === 'multiple' ? 'Selección múltiple' : q.type === 'truefalse' ? 'Verdadero o falso' : 'Selección única' }}
+              {{ typeLabel(q) }}
             </span>
             <span class="qtext">{{ index() + 1 }}. {{ q.text }}</span>
           </legend>
           @if (q.type === 'multiple') {
-            <p class="small muted">Puedes marcar más de una opción.</p>
+            <!-- Etapa 2B: cantidad exacta exigida por el instructor y cuántas lleva marcadas. -->
+            <p class="small selection" [id]="'sel-help-' + q.id" aria-live="polite" [class.is-complete]="isAnswered(q)">
+              Selecciona exactamente {{ required(q) }} {{ required(q) === 1 ? 'alternativa' : 'alternativas' }}.
+              Llevas {{ selected(q) }} de {{ required(q) }}.
+              @if (selected(q) > required(q)) { Desmarca {{ selected(q) - required(q) }} para continuar. }
+              @else if (atLimit(q)) { Para cambiar tu elección, desmarca una alternativa. }
+            </p>
+          }
+          @if (q.type === 'open') {
+            <!-- M5: respuesta abierta. La califica el instructor; no se corrige automáticamente. -->
+            <div class="open">
+              <label class="sr-only" [for]="'open-' + q.id">Tu respuesta a la pregunta {{ index() + 1 }}</label>
+              <textarea
+                class="input open__text"
+                [id]="'open-' + q.id"
+                rows="7"
+                [attr.maxlength]="openMax"
+                [value]="openText(q.id)"
+                (input)="setOpenAnswer(q, $any($event.target).value)"
+                [attr.aria-describedby]="'open-help-' + q.id"
+              ></textarea>
+              <p class="small muted open__help" [id]="'open-help-' + q.id">
+                Responde con tus propias palabras ({{ openText(q.id).length }} de {{ openMax }} caracteres). Esta pregunta
+                la califica el instructor: tu resultado se mostrará cuando termine la revisión.
+              </p>
+            </div>
           }
           <div class="opts">
             @for (o of q.options; track o.id) {
-              <label class="opt" [class.is-selected]="isSelected(q.id, o.id)">
+              <label
+                class="opt"
+                [class.is-selected]="isSelected(q.id, o.id)"
+                [class.is-disabled]="atLimit(q) && !isSelected(q.id, o.id)"
+              >
                 <input
                   [type]="q.type === 'multiple' ? 'checkbox' : 'radio'"
                   [name]="'q-' + q.id"
                   [checked]="isSelected(q.id, o.id)"
+                  [disabled]="atLimit(q) && !isSelected(q.id, o.id)"
+                  [attr.aria-describedby]="q.type === 'multiple' ? 'sel-help-' + q.id : null"
                   (change)="choose(q, o.id)"
                 />
                 <span>{{ o.text }}</span>
@@ -48,12 +88,15 @@
 
         <div class="row nav">
           <button type="button" class="btn btn-secondary" [disabled]="index() === 0" (click)="go(index() - 1)">
-            ← Anterior
+            <app-icon name="arrow-left" size="sm" /> Anterior
           </button>
           @if (index() < questions().length - 1) {
-            <button type="button" class="btn btn-secondary" (click)="go(index() + 1)">Siguiente →</button>
+            <button type="button" class="btn btn-secondary" (click)="go(index() + 1)">
+              Siguiente <app-icon name="arrow-right" size="sm" />
+            </button>
           }
           <button
+            #finishButton
             type="button"
             class="btn btn-primary push"
             [class.is-loading]="submitting()"
@@ -65,8 +108,8 @@
         </div>
       </section>
 
-      <aside class="card stack">
-        <h3>Preguntas</h3>
+      <aside class="card stack palette" aria-labelledby="palette-title">
+        <h3 id="palette-title">Preguntas</h3>
         <div class="chips">
           @for (item of questions(); track item.id; let i = $index) {
             <button
@@ -74,7 +117,10 @@
               class="chip"
               [class.is-current]="i === index()"
               [class.is-answered]="isAnswered(item)"
-              [attr.aria-label]="'Ir a la pregunta ' + (i + 1) + (isAnswered(item) ? ', respondida' : ', sin responder')"
+              [class.is-partial]="isPartial(item)"
+              [attr.aria-label]="
+                'Ir a la pregunta ' + (i + 1) + (isAnswered(item) ? ', respondida' : isPartial(item) ? ', incompleta' : ', sin responder')
+              "
               [attr.aria-current]="i === index() ? 'step' : null"
               (click)="go(i)"
             >
@@ -82,30 +128,63 @@
             </button>
           }
         </div>
-        <p class="small muted">Azul: respondida · Borde: pregunta actual.</p>
-        <p class="alert alert-info small">
+        <p class="small muted legend">
+          <span class="legend__item"><span class="swatch swatch--answered" aria-hidden="true"></span> Azul: respondida ·</span>
+          <span class="legend__item"><span class="swatch swatch--partial" aria-hidden="true"></span> Ámbar: incompleta ·</span>
+          <span class="legend__item"><span class="swatch swatch--current" aria-hidden="true"></span> Borde: pregunta actual.</span>
+        </p>
+        <p class="alert alert-info small demo-only">
           Preguntas de demostración. El temporizador y la calificación están simulados en el navegador.
         </p>
       </aside>
     </div>
   }
 
+  @if (showTimeWarning()) {
+    <app-exam-time-warning (closed)="dismissTimeWarning()" />
+  }
+
   @if (showConfirm()) {
     <div class="overlay">
-      <div class="dialog card stack" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-        <h2 id="confirm-title">¿Enviar el examen?</h2>
-        @if (unanswered() > 0) {
-          <p class="alert alert-warning">
-            Tienes {{ unanswered() }} {{ unanswered() === 1 ? 'pregunta sin responder' : 'preguntas sin responder' }}.
+      <div #confirmDialog class="dialog card stack" role="dialog" aria-modal="true" aria-labelledby="confirm-title" (keydown)="dialogKey($event)">
+        @if (submitBlocked()) {
+          <!-- Etapa 2B (D3): la entrega voluntaria exige todas las preguntas completas. -->
+          <h2 id="confirm-title">Todavía no puedes enviar el examen</h2>
+          <p class="alert alert-warning" data-pending>
+            Para entregar debes completar todas las preguntas.
+            {{ pendingNumbers().length === 1 ? 'Falta completar la pregunta' : 'Falta completar las preguntas' }}
+            {{ pendingNumbers().join(', ') }}.
           </p>
+          <p class="muted small">
+            En las de selección múltiple marca exactamente la cantidad indicada. Si el tiempo se agota, se enviarán
+            automáticamente las respuestas que hayas registrado.
+          </p>
+          <div class="row">
+            <button type="button" class="btn btn-primary" (click)="goToPending()">Ir a la pregunta {{ pendingNumbers()[0] }}</button>
+            <button #keepReviewing type="button" class="btn btn-secondary" (click)="cancelSubmit()">Seguir revisando</button>
+          </div>
         } @else {
-          <p>Respondiste todas las preguntas.</p>
+          <h2 id="confirm-title">¿Enviar el examen?</h2>
+          @if (unanswered() > 0) {
+            <!-- Solo con el tiempo agotado (reenvío): se envía lo registrado. -->
+            <p class="alert alert-warning">
+              El tiempo terminó: se enviarán las respuestas registradas. Las preguntas sin completar se califican con lo
+              que hayas marcado.
+            </p>
+          } @else {
+            <p>Respondiste todas las preguntas.</p>
+          }
+          <p class="muted small">Una vez enviado, el intento se registra y no podrás cambiar tus respuestas.</p>
+          @if (hasOpen()) {
+            <p class="muted small">
+              El examen tiene preguntas de respuesta abierta: quedará «Pendiente de calificación» hasta que el instructor las califique.
+            </p>
+          }
+          <div class="row">
+            <button type="button" class="btn btn-primary" (click)="submit()">Sí, enviar</button>
+            <button #keepReviewing type="button" class="btn btn-secondary" (click)="cancelSubmit()">Seguir revisando</button>
+          </div>
         }
-        <p class="muted small">Una vez enviado, el intento se registra y no podrás cambiar tus respuestas.</p>
-        <div class="row">
-          <button type="button" class="btn btn-primary" (click)="submit()">Sí, enviar</button>
-          <button type="button" class="btn btn-secondary" (click)="cancelSubmit()">Seguir revisando</button>
-        </div>
       </div>
     </div>
   }

@@ -5,10 +5,11 @@ import { DataRepository } from '../../../core/services/data-repository';
 import { CertificateService } from '../../../core/services/certificate.service';
 import { Certificate } from '../../../core/models/certificate.model';
 import { CertificateView } from '../certificate-view/certificate-view';
+import { Icon } from '../../../shared/components/icon';
 
 @Component({
   selector: 'app-certificate-detail',
-  imports: [RouterLink, CertificateView],
+  imports: [RouterLink, CertificateView, Icon],
   templateUrl: './certificate-detail.html',
   styleUrl: './certificate-detail.css',
 })

@@ -1,41 +1,65 @@
 <div class="stack">
+  <a routerLink="/panel" class="back-link"><app-icon name="arrow-left" size="sm" /> Volver a mis cursos</a>
+
   @if (loading()) {
     <p class="card muted" role="status">Cargando el curso…</p>
-  } @else if (!course() || !enrollment()) {
-    <p class="alert alert-warning">Aún no tienes un curso asignado. Comunícate con la empresa.</p>
+  } @else if (error() || !course()) {
+    <p class="alert alert-warning" role="alert">{{ error() || 'No se encontró el curso.' }}</p>
   } @else {
-    <header class="stack">
-      <div>
-        <h1>{{ course()!.name }}</h1>
-        <p class="muted">{{ course()!.description }}</p>
+    @let c = course()!;
+    <header class="card head">
+      <div class="row title-row">
+        <h1>{{ c.name }}</h1>
+        <app-level-badge [level]="c.level" />
+        @if (isDraft()) {
+          <span class="badge badge--warning">Borrador · demo</span>
+        }
       </div>
-      <div>
+      <p class="muted desc">{{ c.description }}</p>
+
+      @if (isDraft()) {
+        <p class="alert alert-warning small">
+          Este curso está en borrador y se muestra solo en la demostración. Puedes ver su contenido, pero el examen y
+          el certificado permanecen bloqueados hasta que el curso se publique y cumpla las reglas de videos (RN-03).
+        </p>
+      }
+
+      <div class="progress">
         <div class="row between">
           <strong>Progreso general</strong>
-          <span>{{ completed() }} de {{ total() }} videos · {{ percent() }}%</span>
+          <span>{{ completed() }} de {{ total() }} {{ total() === 1 ? 'video' : 'videos' }} · {{ percent() }}%</span>
         </div>
         <app-progress-bar [value]="percent()" label="Progreso general del curso" />
       </div>
     </header>
 
-    @if (error()) {
-      <p class="alert alert-danger" role="alert">{{ error() }}</p>
+    <!-- Estructura del aula (20/11/2026): cuatro áreas del curso. Los botones desplazan a cada sección. -->
+    <nav class="card sections" aria-label="Secciones del curso" data-test="course-sections">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="goTo('seccion-contenido')"><app-icon name="list" size="sm" /> Contenido del curso</button>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="goTo('seccion-clases')"><app-icon name="video" size="sm" /> Clases en vivo</button>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="goTo('seccion-evaluaciones')"><app-icon name="flag" size="sm" /> Evaluaciones</button>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="goTo('seccion-progreso')"><app-icon name="award" size="sm" /> Progreso y certificados</button>
+    </nav>
+
+    @if (actionError()) {
+      <p class="alert alert-danger" role="alert">{{ actionError() }}</p>
     }
 
-    @if (current(); as video) {
-      <div class="room">
-        <section class="main stack">
-          <div class="player" role="img" aria-label="Marcador de posición del reproductor de video">
-            <div class="player__inner">
-              <span class="play" aria-hidden="true">▶</span>
-              <p>Video de demostración</p>
-              <small>Reproductor por integrar · {{ video.durationMin }} min</small>
-            </div>
-          </div>
+    <div class="room">
+      <section class="main stack" aria-label="Video actual">
+        @if (current(); as video) {
+          <app-video-player [video]="video" />
 
-          <div class="card stack">
-            <div class="row between">
-              <h2>{{ video.order }}. {{ video.title }}</h2>
+          <div class="card stack lesson">
+            <div class="row between lesson__head">
+              <h2>
+                @if (currentModule(); as cm) {
+                  <!-- M3: con varios módulos, se indica en cuál está el video actual. -->
+                  <span class="lesson__module">Módulo {{ cm.number }} · {{ cm.title }}</span>
+                }
+                <span class="lesson__num">Video {{ position(video) }} de {{ total() }}</span>
+                {{ video.title }} <span class="dur">· {{ video.durationSec | videoDuration }}</span>
+              </h2>
               @if (isDone(video.id)) {
                 <span class="badge badge--success">Completado</span>
               } @else {
@@ -45,10 +69,18 @@
             @if (video.description) {
               <p class="muted">{{ video.description }}</p>
             }
+            @if (video.materialUrl) {
+              <p class="small" data-test="material">
+                <a [href]="video.materialUrl" target="_blank" rel="noopener noreferrer"><app-icon name="download" size="sm" /> Material complementario</a>
+              </p>
+            }
+            @if (video.sourceCredit) {
+              <p class="small muted">Fuente: {{ video.sourceCredit }}. Contenido de terceros usado solo para la demostración.</p>
+            }
 
             <div class="row nav">
               @if (prev(); as p) {
-                <a class="btn btn-secondary" [routerLink]="['/curso', p.id]">← Anterior</a>
+                <a class="btn btn-secondary" [routerLink]="videoLink(p)"><app-icon name="arrow-left" size="sm" /> Anterior</a>
               }
               @if (!isDone(video.id)) {
                 <button
@@ -58,63 +90,187 @@
                   [disabled]="marking()"
                   (click)="markDone(true)"
                 >
+                  <app-icon name="check" size="sm" />
                   {{ next() ? 'Marcar como visto y continuar' : 'Marcar como visto' }}
                 </button>
               }
               @if (next(); as n) {
-                <a class="btn btn-secondary" [routerLink]="['/curso', n.id]">Siguiente →</a>
+                <a class="btn btn-secondary" [routerLink]="videoLink(n)">Siguiente <app-icon name="arrow-right" size="sm" /></a>
               }
             </div>
             <p class="small muted">
-              Progreso simulado para la demostración. El registro real del tiempo de visualización
-              requiere un reproductor compatible y el backend.
+              Cuando termines de ver el video, márcalo como visto: el avance no se registra automáticamente.
+              Progreso simulado para la demostración; el registro real del tiempo de visualización requiere el backend.
             </p>
           </div>
-        </section>
+        } @else {
+          <section class="card empty">
+            <app-icon name="play" size="lg" />
+            <p class="muted">Este curso aún no tiene videos publicados.</p>
+          </section>
+        }
+      </section>
 
-        <aside class="side stack">
-          <section class="card">
-            <h3>Contenido del curso</h3>
-            <ol class="list">
-              @for (v of videos(); track v.id) {
+      <aside class="side">
+        <nav class="card" id="seccion-contenido" tabindex="-1" aria-label="Contenido del curso">
+          <h3>Contenido del curso</h3>
+          @for (m of modules(); track m.id; let mi = $index) {
+            <!-- Con un solo módulo, su título repetiría el encabezado. Con varios (M3), cada módulo es un acordeón. -->
+            @if (modules().length > 1) {
+              <h4 class="module">
+                <button
+                  type="button"
+                  class="module__toggle"
+                  [attr.aria-expanded]="isOpen(m.id)"
+                  [attr.aria-controls]="'room-mod-' + m.id"
+                  (click)="toggle(m.id)"
+                >
+                  <app-icon name="chevron-down" size="sm" class="chev" [class.is-open]="isOpen(m.id)" />
+                  <span class="module__title">Módulo {{ mi + 1 }} · {{ m.title }}</span>
+                  <span class="module__count">{{ doneIn(m) }}/{{ m.videos.length }}<span class="sr-only"> videos completados</span></span>
+                </button>
+              </h4>
+            }
+            @if (modules().length === 1 || isOpen(m.id)) {
+            @if (modules().length > 1 && m.description) {
+              <p class="module__desc small muted">{{ m.description }}</p>
+            }
+            <ol class="list" [id]="'room-mod-' + m.id">
+              @for (v of m.videos; track v.id) {
                 <li>
                   <a
-                    [routerLink]="['/curso', v.id]"
+                    [routerLink]="videoLink(v)"
                     class="item"
-                    [class.is-current]="v.id === video.id"
-                    [attr.aria-current]="v.id === video.id ? 'true' : null"
+                    [class.is-current]="v.id === current()?.id"
+                    [attr.aria-current]="v.id === current()?.id ? 'true' : null"
                   >
-                    <span class="num">{{ v.order }}</span>
+                    <span class="num">{{ position(v) }}</span>
                     <span class="txt">
                       <span class="t">{{ v.title }}</span>
-                      <span class="d">{{ v.durationMin }} min</span>
+                      <span class="d">{{ v.durationSec | videoDuration }}</span>
                     </span>
                     <span class="chk" [class.is-done]="isDone(v.id)" aria-hidden="true">
-                      {{ isDone(v.id) ? '✓' : '' }}
+                      @if (isDone(v.id)) { <app-icon name="check" size="sm" /> }
                     </span>
                     <span class="sr-only">{{ isDone(v.id) ? 'Completado' : 'Pendiente' }}</span>
                   </a>
                 </li>
               }
             </ol>
-          </section>
-
-          <section class="card stack">
-            <h3>Examen</h3>
-            @if (approved()) {
-              <p class="alert alert-success small">Ya aprobaste el examen.</p>
-            } @else if (examUnlocked()) {
-              <p class="small">Completaste todos los videos. Ya puedes rendir el examen.</p>
-              <a class="btn btn-primary" routerLink="/examen/instrucciones">Ir al examen</a>
-            } @else {
-              <p class="small muted">
-                🔒 El examen permanece bloqueado hasta completar los {{ total() }} videos obligatorios.
-              </p>
-              <button type="button" class="btn btn-secondary" disabled>Ir al examen</button>
             }
-          </section>
-        </aside>
+          }
+        </nav>
+      </aside>
+
+      <div class="status">
+        <!-- Clases en vivo con Google Meet (20/11/2026): sección propia del curso (no es un módulo de videos). -->
+        <section class="card stack status__card" id="seccion-clases" tabindex="-1" aria-labelledby="live-card-title" data-test="live-sessions">
+          <h3 id="live-card-title"><app-icon name="video" size="sm" /> Clases en vivo</h3>
+          @if (liveSessions().length === 0) {
+            <p class="small muted" data-test="live-empty">No hay clases en vivo programadas para este curso.</p>
+          }
+          @for (group of liveGroups(); track group.label) {
+            <h4 class="live-group">{{ group.label }}</h4>
+            <ul class="live-list" role="list">
+              @for (s of group.items; track s.id) {
+                <li class="live-item" [attr.data-live-session]="s.id" [attr.data-phase]="phase(s)">
+                  <strong [class.is-cancelled]="s.status === 'cancelada'">{{ s.title }}</strong>
+                  <span class="small muted">{{ s.moduleOrder ? 'Módulo ' + s.moduleOrder + ': ' + s.moduleTitle : 'Clase de todo el curso' }}</span>
+                  <span class="small">{{ liveWhen(s) }}</span>
+                  @if (s.description) { <span class="small muted">{{ s.description }}</span> }
+                  <span><span class="badge" [class]="phaseBadge(s)">{{ phaseLabel(s) }}</span></span>
+                  @if (phase(s) === 'proxima' || phase(s) === 'en_curso') {
+                    <a class="btn btn-primary btn-sm" [href]="s.meetUrl" target="_blank" rel="noopener noreferrer"
+                      [attr.aria-label]="'Unirse a la clase ' + s.title + ' (se abre Google Meet en una pestaña nueva)'">
+                      <app-icon name="video" size="sm" /> Unirse a la clase
+                    </a>
+                  }
+                  @if (phase(s) !== 'cancelada' && s.recordingUrl) {
+                    <a class="btn btn-secondary btn-sm" [href]="s.recordingUrl" target="_blank" rel="noopener noreferrer" data-test="recording"
+                      [attr.aria-label]="'Ver la grabación de ' + s.title + ' (se abre en una pestaña nueva)'">
+                      <app-icon name="play" size="sm" /> Ver grabación
+                    </a>
+                  }
+                </li>
+              }
+            </ul>
+          }
+        </section>
+        <section class="card stack status__card" id="seccion-evaluaciones" tabindex="-1" aria-labelledby="exam-card-title">
+          <h3 id="exam-card-title"><app-icon name="flag" size="sm" /> Examen</h3>
+          @if (result()?.current; as cur) {
+            <!-- R6: una sola nota final vigente (la de la recuperación si existe, aunque sea menor). -->
+            <p class="small" data-final>
+              Nota final:
+              @if (pending(cur)) {
+                <strong>Pendiente de calificación</strong>
+              } @else {
+                <strong>{{ cur.score }} / {{ cur.scaleMax }}</strong> · {{ cur.passed ? 'Aprobado' : 'Desaprobado' }}
+              }
+            </p>
+          }
+          @if (recoveryCard(); as rc) {
+            <!-- 20/11/2026: recuperación autorizada por el Instructor (nueva oportunidad con el examen original). -->
+            <div class="recovery-card stack" data-recovery-card [class.recovery-card--open]="rc.canTake">
+              <p class="recovery-card__status"><span class="badge" [class]="rc.badge">{{ rc.label }}</span></p>
+              <dl class="recovery-card__data small">
+                <div><dt>Curso</dt><dd>{{ c.name }}</dd></div>
+                <div><dt>Examen</dt><dd>{{ recoveryExamTitle() || 'Examen original del curso' }} <span class="muted">(examen original)</span></dd></div>
+                <div><dt>Apertura</dt><dd>{{ rc.recovery.opensAt | date: 'dd/MM/yyyy HH:mm' : '-0500' }}</dd></div>
+                <div><dt>Cierre</dt><dd>{{ rc.recovery.closesAt | date: 'dd/MM/yyyy HH:mm' : '-0500' }}</dd></div>
+                <div><dt>Oportunidad</dt><dd>{{ rc.opportunity }}</dd></div>
+              </dl>
+              <p class="small muted">Hora de Lima. La fecha de cierre limita el inicio: si inicias a tiempo, tienes la duración completa del examen.</p>
+              @if (rc.active) {
+                <div>
+                  @if (rc.canTake) {
+                    <a class="btn btn-primary" [routerLink]="['/cursos', c.id, 'examen']" data-test="take-recovery">
+                      {{ rc.started ? 'Continuar examen de recuperación' : 'Rendir examen de recuperación' }}
+                    </a>
+                  } @else {
+                    <button type="button" class="btn btn-primary" disabled data-test="take-recovery">Rendir examen de recuperación</button>
+                  }
+                </div>
+              }
+            </div>
+          }
+          @if (approved()) {
+            <p class="alert alert-success small">Ya aprobaste el examen.</p>
+            <div><a class="btn btn-secondary" [routerLink]="['/cursos', c.id, 'examen', 'resultado']">Ver resultado</a></div>
+          } @else if (recoveryCard()?.active) {
+            <!-- La tarjeta de recuperación ya muestra el estado y el botón. -->
+          } @else if (availability()?.available) {
+            <p class="small">{{ recoveryAuthorized() ? 'Ya puedes rendir tu recuperación.' : 'Ya puedes rendir el examen.' }}</p>
+            <div>
+              <a class="btn btn-primary" [routerLink]="['/cursos', c.id, 'examen']">{{ recoveryAuthorized() ? 'Ir a la recuperación' : 'Ir al examen' }}</a>
+            </div>
+          } @else {
+            <p class="small muted locked">
+              <app-icon name="lock" size="sm" /> {{ availability()?.reason || 'El examen no está disponible.' }}
+            </p>
+            <div class="row">
+              <button type="button" class="btn btn-secondary" disabled>Ir al examen</button>
+              @if (result()?.current) {
+                <a class="btn btn-ghost" [routerLink]="['/cursos', c.id, 'examen', 'resultado']">Ver resultado</a>
+              }
+            </div>
+          }
+        </section>
+
+        <section class="card stack status__card" id="seccion-progreso" tabindex="-1" aria-labelledby="cert-card-title">
+          <h3 id="cert-card-title"><app-icon name="award" size="sm" /> Certificado</h3>
+          @if (certificate(); as cert) {
+            <p class="small">Tu certificado está disponible.</p>
+            <div><a class="btn btn-primary" [routerLink]="['/certificados', cert.id]">Ver certificado</a></div>
+          } @else if (approved()) {
+            <p class="small">Aprobaste el examen. Tu certificado está pendiente de habilitación.</p>
+          } @else if (isDraft()) {
+            <p class="small muted locked"><app-icon name="lock" size="sm" /> Bloqueado mientras el curso esté en borrador.</p>
+          } @else {
+            <p class="small muted locked"><app-icon name="lock" size="sm" /> Se habilita cuando apruebes el examen.</p>
+          }
+        </section>
       </div>
-    }
+    </div>
   }
 </div>

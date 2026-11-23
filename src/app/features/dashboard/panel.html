@@ -1,83 +1,72 @@
 <div class="stack">
+  <header class="page-head">
+    <h1>Hola, {{ firstName() }}</h1>
+    <p class="muted">Estos son los cursos que tienes asignados.</p>
+  </header>
+
+  @if (aviso() === 'sin-acceso') {
+    <p class="alert alert-warning" role="alert">
+      No tienes acceso a ese curso. Aquí puedes ver los cursos que tienes asignados.
+    </p>
+  }
+
   @if (loading()) {
-    <p class="card muted" role="status">Cargando tu panel…</p>
+    <p class="card muted" role="status">Cargando tus cursos…</p>
   } @else if (error()) {
     <p class="alert alert-danger" role="alert">{{ error() }}</p>
+  } @else if (courses().length === 0) {
+    <section class="card empty">
+      <app-icon name="book" size="lg" />
+      <h2>Aún no tienes cursos asignados</h2>
+      <p class="muted">Comunícate con la empresa.</p>
+    </section>
   } @else {
-    <header class="head">
-      <div>
-        <h1>Hola, {{ firstName() }}</h1>
-        <p class="muted">Este es el resumen de tu capacitación.</p>
-      </div>
-      @if (enrollment(); as e) {
-        <app-status-badge [status]="e.status" />
-      }
-    </header>
-
-    @if (!enrollment() || !course()) {
-      <p class="alert alert-warning">Aún no tienes un curso asignado. Comunícate con la empresa.</p>
-    } @else {
-      <div class="grid grid-2">
-        <article class="card stack">
-          <h2>{{ course()!.name }}</h2>
-          <p class="muted">{{ course()!.description }}</p>
-
-          <div>
-            <div class="row between">
-              <strong>Progreso</strong>
-              <span>{{ percent() }}%</span>
+    <h2 class="section-title">Mis cursos <span class="count">{{ courses().length }}</span></h2>
+    <ul class="courses" role="list">
+      @for (p of courses(); track p.course.id) {
+        <li class="course card">
+          <app-course-cover [image]="p.course.coverImage" />
+          <div class="course__body">
+            <div class="row tags">
+              <app-status-badge [status]="p.enrollment.status" [student]="true" />
+              <app-level-badge [level]="p.course.level" />
+              @if (p.preview) {
+                <span class="badge badge--warning">Borrador · demo</span>
+              }
             </div>
-            <app-progress-bar [value]="percent()" label="Progreso del curso" />
-            <p class="small muted">{{ completed() }} de {{ total() }} videos completados</p>
-          </div>
 
-          @if (enrollment()!.startDate) {
-            <p class="small muted">Inicio de la capacitación: {{ enrollment()!.startDate | date: 'dd/MM/yyyy' }}</p>
-          }
+            <h3 class="course__title">
+              <a class="course__link" [routerLink]="['/cursos', p.course.id]">{{ p.course.name }}</a>
+            </h3>
+            <p class="muted course__desc">{{ p.course.description }}</p>
 
-          <a class="btn btn-primary" routerLink="/curso">{{ courseButton() }}</a>
-        </article>
-
-        <article class="card stack">
-          <h2>Examen</h2>
-          @switch (examState()) {
-            @case ('locked') {
-              <span class="badge badge--neutral">Bloqueado</span>
-              <p>El examen se habilita cuando completes todos los videos del curso.</p>
-              <button type="button" class="btn btn-secondary" disabled>Ir al examen</button>
-            }
-            @case ('available') {
-              <span class="badge badge--warning">Disponible</span>
-              <p>
-                Ya puedes rendir el examen. Intentos disponibles: <strong>{{ remaining() }}</strong> de
-                {{ exam()!.maxAttempts }}.
+            <div class="course__progress">
+              <div class="row between">
+                <span class="label">Progreso</span>
+                <strong>{{ p.percent }}%</strong>
+              </div>
+              <app-progress-bar [value]="p.percent" [label]="'Progreso de ' + p.course.name" />
+              <p class="small muted">
+                @if (p.totalVideos === 0) {
+                  Este curso aún no tiene videos publicados.
+                } @else {
+                  {{ p.completedVideos }} de {{ p.totalVideos }} {{ p.totalVideos === 1 ? 'video completado' : 'videos completados' }}
+                }
               </p>
-              <a class="btn btn-primary" routerLink="/examen/instrucciones">Ir al examen</a>
-            }
-            @case ('passed') {
-              <span class="badge badge--success">Aprobado</span>
-              <p>¡Felicitaciones! Aprobaste el examen.</p>
-            }
-            @case ('exhausted') {
-              <span class="badge badge--danger">Sin intentos</span>
-              <p>Alcanzaste el límite de intentos. Comunícate con la empresa.</p>
-            }
-          }
-        </article>
-      </div>
+            </div>
 
-      <article class="card stack">
-        <h2>Certificado</h2>
-        @if (certificates().length > 0) {
-          <p>Tu certificado está disponible.</p>
-          <div><a class="btn btn-primary" routerLink="/certificados">Ver mis certificados</a></div>
-        } @else if (examState() === 'passed') {
-          <p>Aprobaste el examen. Tu certificado está pendiente de habilitación.</p>
-          <div><a class="btn btn-secondary" routerLink="/certificados">Ver estado</a></div>
-        } @else {
-          <p class="muted">Se habilita cuando completes los videos y apruebes el examen.</p>
-        }
-      </article>
-    }
+            <span class="btn btn-primary course__cta" aria-hidden="true">{{ cta(p) }} <app-icon name="arrow-right" size="sm" /></span>
+          </div>
+        </li>
+      }
+    </ul>
+
+    <p class="alert alert-info small demo-only">
+      Las portadas son ilustraciones de demostración, no imágenes oficiales de IMC.
+      @if (hasPreview()) {
+        Los cursos marcados como «Borrador · demo» solo se muestran en esta demostración: puedes ver su
+        contenido, pero el examen y el certificado permanecen bloqueados.
+      }
+    </p>
   }
 </div>

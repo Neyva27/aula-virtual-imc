@@ -25,6 +25,7 @@
   margin: 0.5cqw 0 0; font-size: 3.6cqw; font-weight: 700;
   border-bottom: 0.15cqw solid var(--c-primary); padding: 0 3cqw 0.4cqw; max-width: 90%;
 }
+.identity { margin: 0.5cqw 0 0; font-size: 1.35cqw; max-width: 86%; overflow-wrap: anywhere; color: var(--c-text); }
 .course { margin: 0.6cqw 0 0; font-size: 2.1cqw; font-weight: 700; max-width: 80%; }
 .facts {
   list-style: none; margin: 1.6cqw 0 0; padding: 0; display: flex; flex-wrap: wrap;

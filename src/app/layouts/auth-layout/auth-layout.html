@@ -1,13 +1,23 @@
+<a class="skip" href="#contenido" (click)="skip($event)">Saltar al contenido</a>
+
 <div class="auth">
   <aside class="auth__brand">
     <app-logo-placeholder [light]="true" />
     <div class="auth__text">
       <h2>Capacitación virtual en Seguridad y Salud en el Trabajo</h2>
       <p>Accede a tu curso, rinde tu evaluación y obtén tu certificado digital.</p>
+      <ul class="auth__features" role="list">
+        <li><app-icon name="book" /> Cursos asignados por la empresa</li>
+        <li><app-icon name="flag" /> Evaluación en línea</li>
+        <li><app-icon name="shield" /> Certificado digital verificable</li>
+      </ul>
     </div>
-    <p class="auth__demo">Versión de demostración · datos de prueba</p>
+    @if (!apiMode) {
+      <p class="auth__demo">Versión de demostración · datos de prueba</p>
+    }
   </aside>
-  <main class="auth__main">
+  <!-- tabindex="-1": el enlace «Saltar al contenido» puede llevar el foco aquí. -->
+  <main class="auth__main" id="contenido" tabindex="-1">
     <div class="auth__content">
       <router-outlet />
     </div>

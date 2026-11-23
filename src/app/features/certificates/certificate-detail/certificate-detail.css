@@ -1,4 +1,20 @@
 .bar { justify-content: space-between; }
 .bar h1 { margin: 0; }
-.preview { overflow-x: auto; }
-.preview app-certificate-view { min-width: 640px; max-width: 980px; margin: 0 auto; }
+.actions { gap: var(--space-2); }
+.empty h1 { margin: 0; font-size: var(--text-xl); }
+/* Contenedor sobrio para la vista previa (el diseño del certificado no cambia). */
+.preview { padding: var(--space-4); background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); box-shadow: var(--shadow); }
+@media (max-width: 600px) {
+  .actions { width: 100%; }
+  .actions .btn { flex: 1 1 auto; }
+  .preview { padding: var(--space-2); }
+}
+/* El certificado escala de forma proporcional con su contenedor (cqw): sin ancho mínimo ni recortes. */
+.preview app-certificate-view { max-width: 980px; margin: 0 auto; }
+/* En pantallas angostas el QR del certificado queda pequeño: se muestra además ampliado para escanearlo. */
+.qr-mobile { display: none; }
+@media (max-width: 700px) {
+  .qr-mobile { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; text-align: center; }
+  .qr-mobile img { width: 180px; height: 180px; }
+  .qr-mobile p { margin: 0; }
+}
